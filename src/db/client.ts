@@ -49,12 +49,51 @@ function createPool(): Pool {
   });
 }
 
-// בפיתוח, Next מרענן מודולים בכל שינוי — pool גלובלי מונע דליפת חיבורים.
-const pool = globalThis.__velaxPool ?? createPool();
-if (process.env.NODE_ENV !== 'production') globalThis.__velaxPool = pool;
+/**
+ * אתחול עצל.
+ *
+ * ⚠ יצירת ה־pool ברמת המודול מפילה את `next build`: השלב "Collecting page data"
+ * טוען כל route, וללא DATABASE_URL בזמן בנייה הבנייה נכשלת — גם כשאף עמוד
+ * אינו באמת ניגש למסד. בפרודקשן מחרוזת החיבור קיימת רק ב־runtime,
+ * ולכן החיבור נוצר בשאילתה הראשונה בפועל ולא בזמן הייבוא.
+ */
+let poolInstance: Pool | undefined;
 
-export const db: NodePgDatabase<typeof schema> = drizzle(pool, { schema, casing: 'snake_case' });
-export { pool, schema };
+function getPool(): Pool {
+  if (globalThis.__velaxPool) return globalThis.__velaxPool;
+  if (!poolInstance) {
+    poolInstance = createPool();
+    // בפיתוח, Next מרענן מודולים בכל שינוי — pool גלובלי מונע דליפת חיבורים.
+    if (process.env.NODE_ENV !== 'production') globalThis.__velaxPool = poolInstance;
+  }
+  return poolInstance;
+}
+
+let dbInstance: NodePgDatabase<typeof schema> | undefined;
+
+function getDb(): NodePgDatabase<typeof schema> {
+  if (!dbInstance) {
+    dbInstance = drizzle(getPool(), { schema, casing: 'snake_case' });
+  }
+  return dbInstance;
+}
+
+/** מייצג את ה־pool/db האמיתי, אך דוחה את יצירתו עד לגישה הראשונה */
+function lazy<T extends object>(resolve: () => T): T {
+  return new Proxy({} as T, {
+    get: (_t, prop, receiver) => Reflect.get(resolve() as object, prop, receiver),
+    set: (_t, prop, value) => Reflect.set(resolve() as object, prop, value),
+    has: (_t, prop) => Reflect.has(resolve() as object, prop),
+    ownKeys: () => Reflect.ownKeys(resolve() as object),
+    getPrototypeOf: () => Reflect.getPrototypeOf(resolve() as object),
+    getOwnPropertyDescriptor: (_t, prop) =>
+      Reflect.getOwnPropertyDescriptor(resolve() as object, prop),
+  });
+}
+
+export const db: NodePgDatabase<typeof schema> = lazy(getDb);
+export const pool: Pool = lazy(getPool);
+export { schema };
 
 export type Database = typeof db;
 /** טיפוס הטרנזקציה, לשימוש בפונקציות שמקבלות tx או db */
