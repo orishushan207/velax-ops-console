@@ -17,7 +17,9 @@ import { buildReference } from '@/lib/utils';
 import { writeAudit } from '@/server/audit';
 import { idempotencyKey } from '@/server/auth/crypto';
 import { assertClubAccess } from '@/server/auth/guard';
-import { getDeviceProvider, getPaymentProvider } from '@/server/providers';
+import { getPaymentProvider } from '@/server/providers';
+import { relayDeviceCommand, relayMessage, type RelayOutcome } from '@/server/app-api/relay';
+import { cancelSessionCommands } from '@/server/app-api/command-queue';
 import { getSettings } from '@/server/settings/service';
 import {
   actionError,
@@ -78,14 +80,21 @@ export async function pauseSessionAction(
     assertClubAccess(ctx.user, session.clubId);
     if (session.status !== 'active') return actionError('ניתן להשהות רק סשן פעיל');
 
-    const provider = getDeviceProvider();
-    const result = session.deviceId
-      ? await provider.sendCommand({ deviceId: session.deviceId, command: 'pause' })
-      : { ok: true, isMock: true, providerName: 'none', latencyMs: 0 };
-
-    if (!result.ok) return actionError(`הפקודה למכשיר נכשלה: ${result.errorMessage ?? ''}`);
+    let relay: RelayOutcome = { state: 'no_device', message: 'אין מכונה משויכת לסשן' };
 
     await db.transaction(async (tx) => {
+      // ⚠ הפקודה נכנסת לתור באותה טרנזקציה של שינוי הסטטוס: אם הרישום
+      // נכשל, גם הבקשה למכונה מתבטלת ולא נוצר פער בין השניים.
+      relay = await relayDeviceCommand(
+        {
+          deviceUuid: session.deviceId,
+          sessionId,
+          command: 'pause',
+          issuedBy: ctx.user.id,
+          reason: parsed.data,
+        },
+        tx,
+      );
       await tx.update(sessions).set({ status: 'paused' }).where(eq(sessions.id, sessionId));
       await tx.insert(sessionEvents).values({
         sessionId,
@@ -119,7 +128,7 @@ export async function pauseSessionAction(
     });
 
     revalidate('/live', `/sessions/${sessionId}`, '/sessions');
-    return actionOk(undefined, 'הסשן הושהה');
+    return actionOk(undefined, relayMessage(relay, 'הסשן הושהה'));
   });
 }
 
@@ -131,13 +140,13 @@ export async function resumeSessionAction(sessionId: string): Promise<ActionResu
     assertClubAccess(ctx.user, session.clubId);
     if (session.status !== 'paused') return actionError('ניתן לחדש רק סשן מושהה');
 
-    const provider = getDeviceProvider();
-    const result = session.deviceId
-      ? await provider.sendCommand({ deviceId: session.deviceId, command: 'resume' })
-      : { ok: true };
-    if (!result.ok) return actionError('הפקודה למכשיר נכשלה');
+    let relay: RelayOutcome = { state: 'no_device', message: 'אין מכונה משויכת לסשן' };
 
     await db.transaction(async (tx) => {
+      relay = await relayDeviceCommand(
+        { deviceUuid: session.deviceId, sessionId, command: 'resume', issuedBy: ctx.user.id },
+        tx,
+      );
       await tx.update(sessions).set({ status: 'active' }).where(eq(sessions.id, sessionId));
       await tx.insert(sessionEvents).values({
         sessionId,
@@ -166,7 +175,7 @@ export async function resumeSessionAction(sessionId: string): Promise<ActionResu
     });
 
     revalidate('/live', `/sessions/${sessionId}`);
-    return actionOk(undefined, 'הסשן חודש');
+    return actionOk(undefined, relayMessage(relay, 'הסשן חודש'));
   });
 }
 
@@ -251,14 +260,7 @@ export async function stopSessionAction(
       return actionError('הסשן אינו במצב שניתן לעצור');
     }
 
-    const provider = getDeviceProvider();
-    if (session.deviceId) {
-      await provider.sendCommand({
-        deviceId: session.deviceId,
-        command: force ? 'force_stop' : 'stop',
-      });
-    }
-
+    let relay: RelayOutcome = { state: 'no_device', message: 'אין מכונה משויכת לסשן' };
     const now = new Date();
     const elapsed = session.startedAt
       ? Math.max(0, Math.round((now.getTime() - session.startedAt.getTime()) / 60000) - session.pausedMinutes)
@@ -266,6 +268,20 @@ export async function stopSessionAction(
     const newStatus = force ? 'interrupted' : 'completed';
 
     await db.transaction(async (tx) => {
+      relay = await relayDeviceCommand(
+        {
+          deviceUuid: session.deviceId,
+          sessionId,
+          command: force ? 'force_stop' : 'stop',
+          issuedBy: ctx.user.id,
+          reason: parsed.data,
+        },
+        tx,
+      );
+      // ⚠ פקודות אחרות של הסשן מבוטלות: "המשך" שממתין בתור והגיע אחרי
+      // העצירה היה מפעיל מחדש מכונה של סשן שהסתיים.
+      await cancelSessionCommands(sessionId, 'הסשן הסתיים', tx);
+
       await tx
         .update(sessions)
         .set({
@@ -306,7 +322,7 @@ export async function stopSessionAction(
     });
 
     revalidate('/live', `/sessions/${sessionId}`, '/sessions');
-    return actionOk(undefined, force ? 'הסשן הופסק בכפייה' : 'הסשן הסתיים');
+    return actionOk(undefined, relayMessage(relay, force ? 'הסשן הופסק בכפייה' : 'הסשן הסתיים'));
   });
 }
 
