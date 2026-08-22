@@ -4,6 +4,14 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ['pg', 'bcryptjs'],
+  /**
+   * ⚠ קבצי ה־SQL נקראים מהדיסק ב־runtime ולא מיובאים בקוד, ולכן Next אינו
+   * מזהה אותם ולא אורז אותם ל־serverless function. בלי זה הכנת המסד נכשלת
+   * בפרודקשן עם ENOENT, בעוד שמקומית הכול עובד כי הקבצים על הדיסק.
+   */
+  outputFileTracingIncludes: {
+    '/**': ['./drizzle/**/*.sql'],
+  },
   experimental: {
     serverActions: { bodySizeLimit: '4mb' },
   },

@@ -75,10 +75,13 @@ async function prepare(): Promise<DbReadyResult> {
     }
   } catch (error) {
     console.error('הכנת המסד נכשלה:', error);
+    const detail = error instanceof Error ? error.message : String(error);
     return {
       ok: false,
       reason: 'failed',
-      message: 'המסד אינו זמין כרגע. נסה שוב בעוד רגע.',
+      // ⚠ הודעת השגיאה שלנו בלבד. אינה כוללת מחרוזת חיבור או סוד אחר,
+      // ובלעדיה אי אפשר לאבחן כשל שקורה רק בסביבת האירוח.
+      message: `הכנת המסד נכשלה: ${detail}`,
     };
   }
 }
