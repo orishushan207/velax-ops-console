@@ -18,7 +18,7 @@ import { Rng } from './rng';
  *
  * שימוש:  npm run db:reset && npm run db:migrate && npm run db:seed
  */
-async function main() {
+export async function runSeed(options: { closePool?: boolean } = {}) {
   const started = Date.now();
 
   if (process.env.APP_ENV === 'production') {
@@ -129,7 +129,7 @@ async function main() {
   console.log('════════════════════════════════════════════════════════');
   console.log('');
 
-  await pool.end();
+  if (options.closePool !== false) await pool.end();
 }
 
 /**
@@ -242,7 +242,10 @@ async function refreshClubHealthScores() {
   console.log(`  ✓ ${count} מועדונים`);
 }
 
-main().catch((err) => {
-  console.error('✗ שגיאה בטעינת הנתונים:', err);
-  process.exit(1);
-});
+// מופעל רק כשהקובץ מורץ כסקריפט CLI, ולא כשהוא מיובא מהשרת
+if (process.env.VELAX_SEED_AS_MODULE !== '1' && process.env.NEXT_RUNTIME === undefined) {
+  runSeed().catch((err) => {
+    console.error('✗ שגיאה בטעינת הנתונים:', err);
+    process.exit(1);
+  });
+}
