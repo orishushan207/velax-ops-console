@@ -1,6 +1,7 @@
 import 'server-only';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
+import { getConnectionString as netlifyConnectionString } from '@netlify/database';
 import * as schema from './schema';
 
 /**
@@ -23,11 +24,20 @@ declare global {
  * מסד הברירת־מחדל של הפלטפורמה בלי לשנות קוד.
  */
 export function resolveConnectionString(): string | undefined {
-  return (
+  const fromEnv =
     process.env.DATABASE_URL ||
     process.env.NETLIFY_DATABASE_URL ||
-    process.env.NETLIFY_DATABASE_URL_UNPOOLED
-  );
+    process.env.NETLIFY_DATABASE_URL_UNPOOLED;
+  if (fromEnv) return fromEnv;
+
+  // ⚠ Netlify אינו מזריק בהכרח את מחרוזת החיבור כמשתנה סביבה ל־runtime.
+  // זו הדרך הרשמית לקבל אותה, והיא גם בוחרת את ה־branch הנכון של המסד.
+  // מחוץ ל־Netlify הקריאה זורקת — ולכן היא עטופה ומחזירה undefined.
+  try {
+    return netlifyConnectionString() || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function createPool(): Pool {
