@@ -65,6 +65,18 @@ async function reconcileStaffPassword(): Promise<void> {
 }
 
 async function prepare(): Promise<DbReadyResult> {
+  // ⚠ סירוב מכוון: פריסה ציבורית לעולם לא תרוץ עם סיסמת ההדגמה המתועדת
+  // ב־repo. עדיף להיכשל ברעש מאשר להעלות קונסולה שכל אחד יכול להיכנס אליה.
+  if (process.env.NODE_ENV === 'production' && !process.env.SEED_ADMIN_PASSWORD?.trim()) {
+    return {
+      ok: false,
+      reason: 'failed',
+      message:
+        'SEED_ADMIN_PASSWORD אינו מוגדר בסביבת האירוח. ' +
+        'ללא סיסמה ייעודית המערכת מסרבת לפעול, כדי לא לרוץ עם סיסמת ההדגמה.',
+    };
+  }
+
   if (!resolveConnectionString()) {
     return {
       ok: false,
