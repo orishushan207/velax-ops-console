@@ -1,4 +1,5 @@
 import 'server-only';
+import { DEPLOY_DEVICE_KEY } from '@/generated/deploy-config';
 import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 /**
@@ -10,7 +11,9 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEq
  */
 
 function getEncryptionKey(): Buffer {
-  const raw = process.env.DEVICE_KEY_ENCRYPTION_KEY;
+  // ⚠ משתני סביבה של Netlify אינם מגיעים ל־runtime של פונקציית Next,
+  // ולכן קיים ערך שנוצר בזמן בנייה. הסביבה עדיין קודמת לו.
+  const raw = process.env.DEVICE_KEY_ENCRYPTION_KEY || DEPLOY_DEVICE_KEY;
   if (!raw) {
     throw new Error('DEVICE_KEY_ENCRYPTION_KEY אינו מוגדר. ראה .env.example');
   }
