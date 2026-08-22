@@ -46,8 +46,17 @@ export function getPaymentProvider(): PaymentProvider {
 
 export function getDeviceProvider(): DeviceProvider {
   if (deviceProvider) return deviceProvider;
-  deviceProvider = new MockDeviceProvider();
-  return deviceProvider;
+  const kind = process.env.DEVICE_PROVIDER ?? 'mock';
+  switch (kind) {
+    case 'mock':
+    default:
+      // ⚠ אין כרגע ספק אמיתי, ובכוונה. ל־PUSUN PT-9001 אין קישוריות משלה:
+      // הפרוטוקול הוא BLE בין הטלפון למכונה בלבד, ולכן הענן אינו יכול לפקד
+      // עליה. ספק אמיתי יהיה תור פקודות שאפליקציית הטלפון אוספת, ולא
+      // שער HTTP אל המכונה. ראה SECURITY_PUSUN.md ו־INTEGRATIONS.md.
+      deviceProvider = new MockDeviceProvider();
+      return deviceProvider;
+  }
 }
 
 export function getBookingProvider(): BookingProvider {
