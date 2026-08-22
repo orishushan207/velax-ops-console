@@ -11,6 +11,10 @@
   # ⚠ הבדיקות אינן רצות בבנייה: Playwright ו־Vitest דורשים מסד מקומי.
   # האימות מתבצע לפני הפריסה, מקומית.
   NEXT_TELEMETRY_DISABLED = "1"
+  # ⚠ משתני סביבה של Netlify אינם מגיעים ל־runtime של פונקציית Next, אך כן
+  # זמינים בזמן בנייה. הערך נצרב לקובץ שרת בבנייה (write-deploy-config).
+  # זו סיסמת הדגמה לפריסת דמו בלבד — לא סוד תפעולי. להחלפה: שנה כאן ופרוס.
+  SEED_ADMIN_PASSWORD = "<REDACTED>"
 
 # Next.js runtime — RSC, Server Actions ו־middleware
 [[plugins]]

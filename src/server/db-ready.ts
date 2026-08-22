@@ -5,6 +5,17 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { db, pool, resolveConnectionString } from '@/db/client';
+import { DEPLOY_ADMIN_PASSWORD } from '@/generated/deploy-config';
+
+/**
+ * הסיסמה שהפריסה אמורה לאכוף.
+ *
+ * ⚠ משתני הסביבה של Netlify אינם מגיעים ל־runtime של הפונקציה, ולכן הערך
+ * נצרב בזמן בנייה. משתנה הסביבה עדיין קודם — הוא עובד מקומית ובכל אירוח אחר.
+ */
+function deployPassword(): string {
+  return process.env.SEED_ADMIN_PASSWORD?.trim() || DEPLOY_ADMIN_PASSWORD.trim();
+}
 
 /**
  * מביא את המסד למצב שמיש בבקשה הראשונה, ומוודא זאת פעם אחת לכל תהליך.
@@ -31,9 +42,20 @@ async function schemaExists(): Promise<boolean> {
   return Boolean((result.rows[0] as { present: boolean } | undefined)?.present);
 }
 
-async function userCount(): Promise<number> {
-  const result = await db.execute(sql`SELECT COUNT(*)::int AS n FROM users`);
-  return (result.rows[0] as { n: number } | undefined)?.n ?? 0;
+/**
+ * האם הטעינה הושלמה, ולא רק התחילה.
+ *
+ * ⚠ ספירת משתמשים לבדה אינה מספיקה: טעינה שנקטעה באמצע — למשל בגלל מגבלת
+ * זמן הריצה של הפונקציה — משאירה משתמשים ומועדונים אך בלי סשנים, וכל
+ * המדדים מוצגים כאפס. הסשנים הם הטבלה האחרונה שנטענת, ולכן קיומם הוא
+ * הסימן לכך שהטעינה הגיעה לסופה.
+ */
+async function seedComplete(): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT (SELECT COUNT(*) FROM users) > 0
+       AND (SELECT COUNT(*) FROM sessions) > 0 AS done
+  `);
+  return Boolean((result.rows[0] as { done: boolean } | undefined)?.done);
 }
 
 /**
@@ -44,7 +66,7 @@ async function userCount(): Promise<number> {
  * בטעות עם ברירת המחדל מתוקן מעצמו בעלייה הבאה.
  */
 async function reconcileStaffPassword(): Promise<void> {
-  const desired = process.env.SEED_ADMIN_PASSWORD?.trim();
+  const desired = deployPassword();
   if (!desired) return;
 
   const { rows } = await pool.query<{ password_hash: string | null }>(
@@ -65,9 +87,16 @@ async function reconcileStaffPassword(): Promise<void> {
 }
 
 async function prepare(): Promise<DbReadyResult> {
-  // ⚠ סירוב מכוון: פריסה ציבורית לעולם לא תרוץ עם סיסמת ההדגמה המתועדת
-  // ב־repo. עדיף להיכשל ברעש מאשר להעלות קונסולה שכל אחד יכול להיכנס אליה.
-  if (process.env.NODE_ENV === 'production' && !process.env.SEED_ADMIN_PASSWORD?.trim()) {
+  const connection = resolveConnectionString();
+  const isLocalDb =
+    !connection || connection.includes('localhost') || connection.includes('127.0.0.1');
+
+  // ⚠ סירוב מכוון: פריסה מול מסד מרוחק לעולם לא תרוץ עם סיסמת ההדגמה
+  // המתועדת ב־repo. עדיף להיכשל ברעש מאשר להעלות קונסולה פתוחה לכל.
+  //
+  // הקריטריון הוא המסד ולא NODE_ENV: `npm run start` מקומי רץ גם הוא
+  // כ־production, וסיסמת הדגמה מול מסד מקומי אינה מסוכנת.
+  if (!isLocalDb && !deployPassword()) {
     return {
       ok: false,
       reason: 'failed',
@@ -77,7 +106,7 @@ async function prepare(): Promise<DbReadyResult> {
     };
   }
 
-  if (!resolveConnectionString()) {
+  if (!connection) {
     return {
       ok: false,
       reason: 'no-connection',
@@ -86,7 +115,7 @@ async function prepare(): Promise<DbReadyResult> {
   }
 
   try {
-    if ((await schemaExists()) && (await userCount()) > 0) {
+    if ((await schemaExists()) && (await seedComplete())) {
       await reconcileStaffPassword();
       return { ok: true, prepared: false };
     }
@@ -95,7 +124,7 @@ async function prepare(): Promise<DbReadyResult> {
     await pool.query('SELECT pg_advisory_lock($1)', [LOCK_ID]);
     try {
       // בדיקה חוזרת תחת הנעילה: ייתכן שבקשה אחרת סיימה בינתיים
-      if ((await schemaExists()) && (await userCount()) > 0) {
+      if ((await schemaExists()) && (await seedComplete())) {
         await reconcileStaffPassword();
         return { ok: true, prepared: false };
       }
@@ -104,7 +133,7 @@ async function prepare(): Promise<DbReadyResult> {
       await migrate(drizzle(pool), { migrationsFolder: join(process.cwd(), 'drizzle') });
       await pool.query(readFileSync(join(process.cwd(), 'drizzle', 'rls-policies.sql'), 'utf8'));
 
-      if ((await userCount()) === 0) {
+      if (!(await seedComplete())) {
         const { runSeed } = await import('@/db/seed/index');
         // ה־pool משותף עם שאר השרת — סגירתו הייתה מנתקת בקשות אחרות
         await runSeed({ closePool: false });

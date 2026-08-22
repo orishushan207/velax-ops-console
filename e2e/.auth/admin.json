@@ -2,10 +2,10 @@
   "cookies": [
     {
       "name": "velax_session",
-      "value": "DKh2SRcHP7bEucDmTp6O8KIwrnbWEQVnagNHEFZUCZA",
+      "value": "7e9o3EU77K-Ttq59BqTOkiA1n9BolNKluq2ejDbV4jk",
       "domain": "localhost",
       "path": "/",
-      "expires": 1787450933.086492,
+      "expires": 1787452036.761766,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"
