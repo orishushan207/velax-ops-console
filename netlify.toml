@@ -1,0 +1,17 @@
+# ─────────────────────────────────────────────────────────────
+# VELA-X Ops Console — הגדרות פריסה ל־Netlify
+# ─────────────────────────────────────────────────────────────
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # ⚠ הבדיקות אינן רצות בבנייה: Playwright ו־Vitest דורשים מסד מקומי.
+  # האימות מתבצע לפני הפריסה, מקומית.
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# Next.js runtime — RSC, Server Actions ו־middleware
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

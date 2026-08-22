@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.netlify/
+.env
+.env.local
+storage/
+test-results/
+playwright-report/
+*.log
+.DS_Store

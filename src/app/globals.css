@@ -1,0 +1,351 @@
+@import 'tailwindcss';
+
+/*
+ * VELA-X Ops Console — מערכת עיצוב
+ * TRAIN SMARTER. PERFORM BETTER.
+ *
+ * שפת המותג לפי פרק 1.4 בתוכנית העסקית:
+ * שחור מט · אפור כהה · לבן · Lime/ניאון כצבע פעולה ומדד חיובי.
+ * אדום להתראות קריטיות · כתום לאזהרות.
+ *
+ * Dark Mode הוא ברירת המחדל. מצב בהיר קיים כאופציה מלאה.
+ */
+
+@theme {
+  /* ─── מותג ─── */
+  --color-lime-brand: #c6f24e;
+  --color-lime-brand-dim: #a8d33c;
+  --color-lime-brand-glow: #d9ff6b;
+
+  /* ─── משטחים (Dark) ─── */
+  --color-surface-base: #0a0a0b;
+  --color-surface-raised: #121214;
+  --color-surface-overlay: #18181b;
+  --color-surface-hover: #1f1f23;
+  --color-surface-active: #26262b;
+
+  /* ─── טקסט ─── */
+  --color-ink-primary: #fafafa;
+  --color-ink-secondary: #a1a1aa;
+  --color-ink-tertiary: #71717a;
+  --color-ink-inverse: #0a0a0b;
+
+  /* ─── גבולות ─── */
+  --color-line-subtle: rgba(255, 255, 255, 0.06);
+  --color-line-default: rgba(255, 255, 255, 0.1);
+  --color-line-strong: rgba(255, 255, 255, 0.18);
+
+  /* ─── סמנטי ─── */
+  --color-signal-positive: #a3e635;
+  --color-signal-warning: #fb923c;
+  --color-signal-danger: #ef4444;
+  --color-signal-info: #38bdf8;
+
+  /* ─── טיפוגרפיה ─── */
+  --font-sans: 'Assistant', 'Heebo', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* ─── רדיוסים ─── */
+  --radius-card: 0.75rem;
+  --radius-control: 0.5rem;
+}
+
+:root {
+  color-scheme: dark;
+
+  --bg-base: #0a0a0b;
+  --bg-raised: #121214;
+  --bg-overlay: #18181b;
+  --bg-hover: #1f1f23;
+  --bg-input: #16161a;
+
+  --fg-primary: #fafafa;
+  --fg-secondary: #a1a1aa;
+  --fg-tertiary: #71717a;
+
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+
+  --accent: #c6f24e;
+  --accent-fg: #0a0a0b;
+
+  --ring: rgba(198, 242, 78, 0.55);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --skeleton-sheen: rgba(255, 255, 255, 0.045);
+
+  /* ─── צבעים סמנטיים ───
+     כל גוון מוגדר בשלוש רמות: טקסט, רקע עדין וטבעת.
+     הם מתהפכים בין המצבים כדי לשמור על ניגודיות תקינה גם על רקע לבן. */
+  --signal-positive: #a3e635;
+  --signal-positive-bg: rgba(163, 230, 53, 0.12);
+  --signal-positive-ring: rgba(163, 230, 53, 0.25);
+
+  --signal-warning: #fbbf24;
+  --signal-warning-bg: rgba(251, 146, 60, 0.12);
+  --signal-warning-ring: rgba(251, 146, 60, 0.25);
+
+  --signal-danger: #f87171;
+  --signal-danger-bg: rgba(239, 68, 68, 0.12);
+  --signal-danger-ring: rgba(239, 68, 68, 0.25);
+
+  --signal-info: #38bdf8;
+  --signal-info-bg: rgba(56, 189, 248, 0.12);
+  --signal-info-ring: rgba(56, 189, 248, 0.25);
+
+  --signal-neutral: #e4e4e7;
+  --signal-neutral-bg: rgba(255, 255, 255, 0.06);
+  --signal-neutral-ring: rgba(255, 255, 255, 0.12);
+
+  --signal-muted: #a1a1aa;
+  --signal-muted-bg: rgba(255, 255, 255, 0.04);
+  --signal-muted-ring: rgba(255, 255, 255, 0.08);
+
+  /* ─── צבעי גרפים ─── */
+  --chart-1: #c6f24e;
+  --chart-2: #38bdf8;
+  --chart-3: #a78bfa;
+  --chart-4: #fb923c;
+  --chart-5: #f472b6;
+  --chart-6: #22d3ee;
+  --chart-grid: rgba(255, 255, 255, 0.06);
+  --chart-heat: #c6f24e;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-base: #f8f9fa;
+  --bg-raised: #ffffff;
+  --bg-overlay: #ffffff;
+  --bg-hover: #f0f0f2;
+  --bg-input: #ffffff;
+
+  --fg-primary: #18181b;
+  --fg-secondary: #52525b;
+  --fg-tertiary: #71717a;
+
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.2);
+
+  --accent: #5f9c0a;
+  --accent-fg: #ffffff;
+
+  --ring: rgba(95, 156, 10, 0.4);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 16px -8px rgba(0, 0, 0, 0.1);
+  --skeleton-sheen: rgba(0, 0, 0, 0.05);
+
+  /* ─── צבעים סמנטיים במצב בהיר ───
+     גוונים כהים יותר, כדי שיעמדו בניגודיות AA על רקע לבן. */
+  --signal-positive: #4d7c0f;
+  --signal-positive-bg: rgba(132, 204, 22, 0.14);
+  --signal-positive-ring: rgba(101, 163, 13, 0.3);
+
+  --signal-warning: #b45309;
+  --signal-warning-bg: rgba(245, 158, 11, 0.14);
+  --signal-warning-ring: rgba(217, 119, 6, 0.3);
+
+  --signal-danger: #b91c1c;
+  --signal-danger-bg: rgba(239, 68, 68, 0.1);
+  --signal-danger-ring: rgba(220, 38, 38, 0.28);
+
+  --signal-info: #0369a1;
+  --signal-info-bg: rgba(14, 165, 233, 0.12);
+  --signal-info-ring: rgba(2, 132, 199, 0.28);
+
+  --signal-neutral: #3f3f46;
+  --signal-neutral-bg: rgba(0, 0, 0, 0.05);
+  --signal-neutral-ring: rgba(0, 0, 0, 0.1);
+
+  --signal-muted: #52525b;
+  --signal-muted-bg: rgba(0, 0, 0, 0.035);
+  --signal-muted-ring: rgba(0, 0, 0, 0.08);
+
+  /* ─── צבעי גרפים במצב בהיר ─── */
+  --chart-1: #65a30d;
+  --chart-2: #0284c7;
+  --chart-3: #7c3aed;
+  --chart-4: #ea580c;
+  --chart-5: #db2777;
+  --chart-6: #0891b2;
+  --chart-grid: rgba(0, 0, 0, 0.07);
+  --chart-heat: #65a30d;
+}
+
+* {
+  border-color: var(--border-subtle);
+}
+
+html {
+  background-color: var(--bg-base);
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+  font-feature-settings: 'ss01', 'cv01';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── נגישות: טבעת פוקוס ברורה לניווט מקלדת ─── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── פס גלילה עדין ─── */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 6px;
+  border: 2px solid var(--bg-base);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* ─── מספרים: תמיד LTR גם בתוך טקסט עברי ─── */
+.num {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  display: inline-block;
+  unicode-bidi: isolate;
+}
+
+/* ─── מזהים טכניים: מונוספייס ו־LTR ─── */
+.mono {
+  font-family: var(--font-mono);
+  direction: ltr;
+  display: inline-block;
+  unicode-bidi: isolate;
+  font-size: 0.8125rem;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * ⚠ display: inline-block שובר תא טבלה: התא מתכווץ לרוחב התוכן,
+ * והעמודות נדחסות זו על זו. תא חייב להישאר table-cell כדי שהעמודה
+ * תשמור על הרוחב שלה. הבידוד וכיוון ה־LTR נשמרים דרך unicode-bidi.
+ */
+td.num,
+th.num,
+td.mono,
+th.mono {
+  display: table-cell;
+}
+
+/* ─── אנימציות עדינות ─── */
+@keyframes velax-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.pulse-live {
+  animation: velax-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes velax-shimmer {
+  100% {
+    transform: translateX(-100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-hover);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(100%);
+  background: linear-gradient(90deg, transparent, var(--skeleton-sheen), transparent);
+  animation: velax-shimmer 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── טבלאות: כותרת דביקה ─── */
+.table-sticky-head thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--bg-raised);
+  backdrop-filter: blur(8px);
+}
+
+/* ─── כרטיס עם הדגשת מותג ─── */
+.brand-edge {
+  position: relative;
+}
+.brand-edge::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* ─── טקסט שנחתך ─── */
+.truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ─── משטח מותג כהה קבוע ───
+   פאנל המותג נשאר שחור בשני המצבים, כי הלוגו והצילומים מתוכננים לרקע כהה.
+   הכלל הזה מחזיר את הטוקנים לערכי המצב הכהה בתוך המשטח בלבד. */
+.on-dark {
+  --fg-primary: #fafafa;
+  --fg-secondary: #a1a1aa;
+  --fg-tertiary: #71717a;
+  --accent: #c6f24e;
+  --accent-fg: #0a0a0b;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  color: var(--fg-primary);
+}
+
+/* ─── קישור לדילוג לתוכן (נגישות) ─── */
+.skip-link {
+  position: absolute;
+  inset-inline-start: -9999px;
+  top: 0;
+  z-index: 100;
+}
+.skip-link:focus {
+  inset-inline-start: 1rem;
+  top: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: var(--radius-control);
+}
