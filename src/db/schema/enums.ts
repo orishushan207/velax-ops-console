@@ -320,6 +320,20 @@ export const bookingLinkTypeEnum = pgEnum('booking_link_type', [
   'unverified',
 ]);
 
+/**
+ * מחזור החיים של פקודה בתור.
+ * ⚠ fetched אינו acknowledged: האפליקציה אספה את הפקודה, אך אין ודאות
+ * שהמכונה קיבלה אותה עד שמגיע אישור מפורש.
+ */
+export const deviceCommandStatusEnum = pgEnum('device_command_status', [
+  'pending',
+  'fetched',
+  'acknowledged',
+  'failed',
+  'expired',
+  'cancelled',
+]);
+
 // ─── מאמנים ───
 export const coachVerificationEnum = pgEnum('coach_verification', [
   'pending',

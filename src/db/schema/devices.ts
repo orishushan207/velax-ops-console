@@ -16,6 +16,7 @@ import {
 import { demoFlag, money, quantity, softDelete, timestamps } from './_shared';
 import {
   deviceAssignmentReasonEnum,
+  deviceCommandStatusEnum,
   deviceConnectivityEnum,
   deviceStatusEnum,
   firmwareChannelEnum,
@@ -200,4 +201,55 @@ export const deviceAssignmentsRelations = relations(deviceAssignments, ({ one })
   device: one(devices, { fields: [deviceAssignments.deviceId], references: [devices.id] }),
   station: one(stations, { fields: [deviceAssignments.stationId], references: [stations.id] }),
   club: one(clubs, { fields: [deviceAssignments.clubId], references: [clubs.id] }),
+}));
+
+/**
+ * device_commands — תור הפקודות מהענן אל המכונה.
+ *
+ * ⚠ קיים משום שלמכונה אין קישוריות משלה. פרוטוקול PUSUN הוא BLE בין
+ * הטלפון למכונה בלבד, ולכן הענן אינו יכול לפקד עליה ישירות. אפליקציית
+ * הטלפון אוספת פקודות ממתינות ומשדרת אותן ב־BLE.
+ *
+ * ⚠ המשמעות התפעולית: פקודה אינה מגיעה למכונה עד שטלפון מתחבר אליה.
+ * "עצור" אינו עצירה מיידית אלא בקשה שתמתין. ה־UI חייב להציג זאת כך.
+ */
+export const deviceCommands = pgTable(
+  'device_commands',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    deviceId: uuid('device_id')
+      .notNull()
+      .references(() => devices.id, { onDelete: 'cascade' }),
+    sessionId: uuid('session_id'),
+    /** הפקודה המופשטת. התרגום ל־BLE נעשה באפליקציה. */
+    command: varchar('command', { length: 40 }).notNull(),
+    /** פרמטרים — למשל הגדרות מכונה מתורגמות מתרגיל */
+    payload: jsonb('payload').$type<Record<string, unknown>>(),
+    status: deviceCommandStatusEnum('status').notNull().default('pending'),
+    /** עדיפות גבוהה נאספת ראשונה — עצירת חירום לפני שינוי הגדרות */
+    priority: smallint('priority').notNull().default(0),
+
+    issuedBy: uuid('issued_by').references(() => users.id),
+    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+    /** מתי האפליקציה אספה את הפקודה */
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }),
+    /** מתי המכונה אישרה בפועל */
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+    /** ⚠ פקודה שלא נאספה עד כאן חדלה מלהיות תקפה */
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    failureReason: text('failure_reason'),
+    reason: text('reason'),
+    ...timestamps,
+    ...demoFlag,
+  },
+  (t) => [
+    /** השאילתה החמה: פקודות ממתינות למכשיר, לפי עדיפות */
+    index('device_commands_pending_idx').on(t.deviceId, t.status, t.priority),
+    index('device_commands_session_idx').on(t.sessionId),
+    index('device_commands_expiry_idx').on(t.expiresAt),
+  ],
+);
+
+export const deviceCommandsRelations = relations(deviceCommands, ({ one }) => ({
+  device: one(devices, { fields: [deviceCommands.deviceId], references: [devices.id] }),
 }));
