@@ -10,7 +10,9 @@ const nextConfig: NextConfig = {
    * בפרודקשן עם ENOENT, בעוד שמקומית הכול עובד כי הקבצים על הדיסק.
    */
   outputFileTracingIncludes: {
-    '/**': ['./drizzle/**/*.sql'],
+    // כולל גם את meta/_journal.json — המַגרטור של drizzle קורא אותו כדי לדעת
+    // אילו migrations כבר הורצו, ובלעדיו הוא נכשל למרות שקבצי ה־SQL קיימים.
+    '/**': ['./drizzle/**/*'],
   },
   experimental: {
     serverActions: { bodySizeLimit: '4mb' },
