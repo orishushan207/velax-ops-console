@@ -12,7 +12,9 @@ setup('התחברות כ־Super Admin', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'התחברות למערכת' })).toBeVisible();
 
   await page.getByLabel('אימייל').fill('admin@velax.co.il');
-  await page.getByLabel('סיסמה').fill('Velax!2026');
+  // תואם ל־seedPassword(): הסביבה גוברת, וברירת המחדל היא סיסמת ההדגמה.
+  // בלי זה הבדיקה נשברת בכל פעם שהמסד המקומי נטען עם סיסמה אחרת.
+  await page.getByLabel('סיסמה').fill(process.env.SEED_ADMIN_PASSWORD || 'Velax!2026');
   await page.getByRole('button', { name: 'כניסה' }).click();
 
   await page.waitForURL('/');
