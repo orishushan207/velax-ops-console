@@ -36,6 +36,34 @@ async function userCount(): Promise<number> {
   return (result.rows[0] as { n: number } | undefined)?.n ?? 0;
 }
 
+/**
+ * מוודא שסיסמת הצוות היא זו שהוגדרה בסביבה.
+ *
+ * ⚠ בלי זה, מסד שנטען פעם אחת עם סיסמת ההדגמה נשאר איתה לנצח — וסיסמת
+ * ההדגמה מתועדת ב־repo. כאן הסביבה היא מקור האמת, כך שגם מסד שנטען
+ * בטעות עם ברירת המחדל מתוקן מעצמו בעלייה הבאה.
+ */
+async function reconcileStaffPassword(): Promise<void> {
+  const desired = process.env.SEED_ADMIN_PASSWORD?.trim();
+  if (!desired) return;
+
+  const { rows } = await pool.query<{ password_hash: string | null }>(
+    "SELECT password_hash FROM users WHERE email = 'admin@velax.co.il' LIMIT 1",
+  );
+  const current = rows[0]?.password_hash;
+  if (!current) return;
+
+  const bcrypt = await import('bcryptjs');
+  if (await bcrypt.compare(desired, current)) return;
+
+  const hash = await bcrypt.hash(desired, 10);
+  const result = await pool.query(
+    'UPDATE users SET password_hash = $1 WHERE password_hash IS NOT NULL',
+    [hash],
+  );
+  console.log(`▸ סיסמת הצוות סונכרנה מהסביבה (${result.rowCount} חשבונות).`);
+}
+
 async function prepare(): Promise<DbReadyResult> {
   if (!resolveConnectionString()) {
     return {
@@ -47,6 +75,7 @@ async function prepare(): Promise<DbReadyResult> {
 
   try {
     if ((await schemaExists()) && (await userCount()) > 0) {
+      await reconcileStaffPassword();
       return { ok: true, prepared: false };
     }
 
@@ -55,6 +84,7 @@ async function prepare(): Promise<DbReadyResult> {
     try {
       // בדיקה חוזרת תחת הנעילה: ייתכן שבקשה אחרת סיימה בינתיים
       if ((await schemaExists()) && (await userCount()) > 0) {
+        await reconcileStaffPassword();
         return { ok: true, prepared: false };
       }
 
@@ -68,6 +98,7 @@ async function prepare(): Promise<DbReadyResult> {
         await runSeed({ closePool: false });
       }
 
+      await reconcileStaffPassword();
       console.log('✓ המסד מוכן.');
       return { ok: true, prepared: true };
     } finally {
