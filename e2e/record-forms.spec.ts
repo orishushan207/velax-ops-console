@@ -61,7 +61,7 @@ test('יצירת מועדון: הטופס נשמר, מפנה לכרטיס ונר
   await dialog.getByRole('button', { name: 'צור מועדון' }).click();
 
   // הצלחה = ניווט לכרטיס המועדון שנוצר
-  await page.waitForURL(/\/clubs\/[0-9a-f-]{36}/);
+  await expect(page).toHaveURL(/\/clubs\/[0-9a-f-]{36}/);
   await expect(page.getByRole('heading', { name: CLUB_NAME })).toBeVisible();
   await expect(page.getByText(CLUB_CODE).first()).toBeVisible();
 

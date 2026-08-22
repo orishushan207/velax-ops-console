@@ -15,6 +15,7 @@ import { Callout, EmptyState } from '@/components/ui/feedback';
 import { DetailList, DetailRow, PageHeader } from '@/components/shell/page-header';
 import { SessionControls } from '../../live/session-controls';
 import { SessionTimeline } from './timeline';
+import { PendingCommands } from './pending-commands';
 import {
   formatCurrency,
   formatDateTime,
@@ -123,7 +124,11 @@ export default async function SessionDetailPage({
         </Callout>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      {/* ⚠ מוצג לפני הפרטים: מפעיל שלחץ "עצור" חייב לראות שהפקודה
+          עדיין לא הגיעה למכונה, לפני כל מידע אחר */}
+      <PendingCommands sessionId={id} />
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
         {/* ─── פרטי הסשן ─── */}
         <div className="space-y-4">
           <Card>

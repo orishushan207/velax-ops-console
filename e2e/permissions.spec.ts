@@ -14,7 +14,7 @@ async function loginAs(page: import('@playwright/test').Page, email: string) {
   await page.getByLabel('אימייל').fill(email);
   await page.getByLabel('סיסמה').fill('Velax!2026');
   await page.getByRole('button', { name: 'כניסה' }).click();
-  await page.waitForURL('/');
+  await expect(page).toHaveURL('/');
 }
 
 test('מנהל מועדון רואה רק את המועדון שלו', async ({ page }) => {
@@ -46,7 +46,7 @@ test('מבקר רואה נתונים אך ללא כפתורי פעולה', async
 
 test('משתמש ללא הרשאה מופנה למסך התחברות', async ({ page }) => {
   await page.goto('/finance');
-  await page.waitForURL(/\/login/);
+  await expect(page).toHaveURL(/\/login/);
   await expect(page.getByRole('heading', { name: 'התחברות למערכת' })).toBeVisible();
 });
 

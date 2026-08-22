@@ -104,7 +104,7 @@ test('ארכוב עמדה: מחיקה רכה בלבד, עם סיבה ב־Audit L
   await dialog.getByLabel('סיבת הארכוב').fill(reason);
   await dialog.getByRole('button', { name: 'ארכב עמדה' }).click();
 
-  await page.waitForURL(/\/stations\/?$/);
+  await expect(page).toHaveURL(/\/stations\/?$/);
 
   const row = await withDb((c) =>
     c.query(`SELECT status, deleted_at FROM stations WHERE id = $1`, [stationId]),
@@ -134,7 +134,7 @@ test('לאחר ארכוב העמדה, ארכוב המועדון מתאפשר', a
   await dialog.getByLabel('סיבת הארכוב').fill('הפיילוט הסתיים והמועדון אינו ממשיך להתקשרות');
   await dialog.getByRole('button', { name: 'ארכב מועדון' }).click();
 
-  await page.waitForURL(/\/clubs\/?$/);
+  await expect(page).toHaveURL(/\/clubs\/?$/);
 
   const row = await withDb((c) =>
     c.query(`SELECT status, deleted_at FROM clubs WHERE id = $1`, [clubId]),

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { clickAndNavigate } from './helpers';
 
 /**
  * זרימה 2 — Session: צפייה, Timeline, וקישור לישויות.
@@ -13,16 +14,17 @@ test('רשימת ה־Sessions מציגה נתונים ומאפשרת מעבר ל
   await expect(firstRef).toBeVisible();
 
   const refText = await firstRef.textContent();
-  await firstRef.click();
-
-  await page.waitForURL(/\/sessions\/[0-9a-f-]{36}/);
+  await clickAndNavigate(page, firstRef, /\/sessions\/[0-9a-f-]{36}/);
   await expect(page.getByRole('heading', { name: refText!.trim(), level: 1 })).toBeVisible();
 });
 
 test('מסך Session מציג Timeline והפרדה בין ברוטו לנטו', async ({ page }) => {
   await page.goto('/sessions');
-  await page.locator('table tbody tr').first().locator('a').first().click();
-  await page.waitForURL(/\/sessions\/[0-9a-f-]{36}/);
+  await clickAndNavigate(
+    page,
+    page.locator('table tbody tr').first().locator('a').first(),
+    /\/sessions\/[0-9a-f-]{36}/,
+  );
 
   await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'כספים' })).toBeVisible();

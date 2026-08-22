@@ -17,7 +17,7 @@ setup('התחברות כ־Super Admin', async ({ page }) => {
   await page.getByLabel('סיסמה').fill(process.env.SEED_ADMIN_PASSWORD || 'Velax!2026');
   await page.getByRole('button', { name: 'כניסה' }).click();
 
-  await page.waitForURL('/');
+  await expect(page).toHaveURL('/');
   await expect(page.getByRole('heading', { name: 'מרכז שליטה' })).toBeVisible();
 
   await page.context().storageState({ path: ADMIN_FILE });

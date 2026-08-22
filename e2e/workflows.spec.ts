@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { clickAndNavigate } from './helpers';
 
 /**
  * זרימה 5 — תהליכי עבודה מקצה לקצה.
@@ -7,22 +8,28 @@ import { test, expect } from '@playwright/test';
 
 test('מועדון → עמדה → מכונה: שרשרת הניווט המלאה', async ({ page }) => {
   await page.goto('/clubs');
-  await page.locator('table tbody tr').first().locator('a').first().click();
-  await page.waitForURL(/\/clubs\/[0-9a-f-]{36}/);
+  await clickAndNavigate(
+    page,
+    page.locator('table tbody tr').first().locator('a').first(),
+    /\/clubs\/[0-9a-f-]{36}/,
+  );
 
   await page.getByRole('tab', { name: 'עמדות ומכונות' }).click();
-  const stationLink = page.locator('a[href^="/stations/"]').first();
-  await expect(stationLink).toBeVisible();
-  await stationLink.click();
-
-  await page.waitForURL(/\/stations\/[0-9a-f-]{36}/);
+  await clickAndNavigate(
+    page,
+    page.locator('a[href^="/stations/"]').first(),
+    /\/stations\/[0-9a-f-]{36}/,
+  );
   await expect(page.getByRole('tab', { name: 'היסטוריית מכונות' })).toBeVisible();
 });
 
 test('תקלה מקושרת לסשן, לעמדה ולמכונה', async ({ page }) => {
   await page.goto('/tickets');
-  await page.locator('table tbody tr').first().locator('a').first().click();
-  await page.waitForURL(/\/tickets\/[0-9a-f-]{36}/);
+  await clickAndNavigate(
+    page,
+    page.locator('table tbody tr').first().locator('a').first(),
+    /\/tickets\/[0-9a-f-]{36}/,
+  );
 
   await expect(page.getByRole('heading', { name: 'SLA' })).toBeVisible();
   await expect(page.getByText('יעד תיקון')).toBeVisible();

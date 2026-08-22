@@ -65,6 +65,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/stations', label: 'עמדות ומכונות', iconName: 'stations', permission: 'stations.view', group: 'network' },
   { href: '/players', label: 'לקוחות ושחקנים', iconName: 'players', permission: 'players.view', group: 'network' },
   { href: '/coaches', label: 'מאמנים', iconName: 'coaches', permission: 'coaches.view', group: 'network' },
+  { href: '/usage-audit', label: 'בקרת שימוש', iconName: 'stations', permission: 'devices.telemetry', group: 'network' },
 
   { href: '/payments', label: 'תשלומים וזיכויים', iconName: 'payments', permission: 'payments.view', group: 'commercial' },
   { href: '/earn-back', label: 'Earn-Back', iconName: 'earnback', permission: 'earnback.view', group: 'commercial' },

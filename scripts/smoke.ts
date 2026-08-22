@@ -23,6 +23,7 @@ const ROUTES: { path: string; name: string; expect?: string }[] = [
   { path: '/stations', name: 'עמדות', expect: '<h1' },
   { path: '/players', name: 'שחקנים', expect: '<h1' },
   { path: '/coaches', name: 'מאמנים', expect: '<h1' },
+  { path: '/usage-audit', name: 'בקרת שימוש', expect: '<h1' },
   { path: '/payments', name: 'תשלומים', expect: '<h1' },
   { path: '/payments/refunds', name: 'זיכויים', expect: '<h1' },
   { path: '/earn-back', name: 'Earn-Back', expect: '<h1' },
