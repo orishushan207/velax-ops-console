@@ -17,6 +17,7 @@ import { demoFlag, money, quantity, softDelete, timestamps } from './_shared';
 import {
   deviceAssignmentReasonEnum,
   deviceCommandStatusEnum,
+  gatewayStatusEnum,
   deviceConnectivityEnum,
   deviceStatusEnum,
   firmwareChannelEnum,
@@ -252,4 +253,53 @@ export const deviceCommands = pgTable(
 
 export const deviceCommandsRelations = relations(deviceCommands, ({ one }) => ({
   device: one(devices, { fields: [deviceCommands.deviceId], references: [devices.id] }),
+}));
+
+/**
+ * station_gateways — שער BLE קבוע בעמדה.
+ *
+ * ⚠ קיים משום שלמכונה אין קישוריות משלה. השער הוא הגשר הקבוע בין הענן
+ * ל־BLE, ומאפשר שליטה מרחוק בלי נוכחות אדם. ראה REMOTE_CONTROL.md.
+ *
+ * ⚠ משויך ל**עמדה** ולא למכונה במכוון: מכונה מוחלפת והעמדה נשארת, ולכן
+ * החלפת מכונה אינה מצריכה הגדרה מחדש של השער.
+ *
+ * ⚠ המפתח נשמר כ־hash בלבד, כמו טוקן סשן. דליפת המסד אינה מאפשרת
+ * להתחזות לשער, והמפתח עצמו מוצג פעם אחת בלבד בעת הרישום.
+ */
+export const stationGateways = pgTable(
+  'station_gateways',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    stationId: uuid('station_id')
+      .notNull()
+      .references(() => stations.id, { onDelete: 'cascade' }),
+    /** מזהה קריא לאדם: GW-TLV-01 */
+    gatewayId: varchar('gateway_id', { length: 64 }).notNull(),
+    /** SHA-256 של מפתח השער. המפתח עצמו אינו נשמר. */
+    keyHash: varchar('key_hash', { length: 128 }).notNull(),
+    keyRotatedAt: timestamp('key_rotated_at', { withTimezone: true }),
+    status: gatewayStatusEnum('status').notNull().default('provisioned'),
+    hardwareModel: varchar('hardware_model', { length: 80 }),
+    firmwareVersion: varchar('firmware_version', { length: 40 }),
+    /** מתי השער דיווח לאחרונה. היעדר דיווח מעיד על שער מנותק. */
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    lastIpAddress: varchar('last_ip_address', { length: 64 }),
+    /** האם השער מחזיק כרגע חיבור BLE למכונה */
+    bleConnected: boolean('ble_connected').notNull().default(false),
+    notes: text('notes'),
+    ...timestamps,
+    ...softDelete,
+    ...demoFlag,
+  },
+  (t) => [
+    uniqueIndex('station_gateways_gateway_key').on(t.gatewayId),
+    uniqueIndex('station_gateways_key_hash').on(t.keyHash),
+    index('station_gateways_station_idx').on(t.stationId),
+    index('station_gateways_seen_idx').on(t.lastSeenAt),
+  ],
+);
+
+export const stationGatewaysRelations = relations(stationGateways, ({ one }) => ({
+  station: one(stations, { fields: [stationGateways.stationId], references: [stations.id] }),
 }));

@@ -334,6 +334,14 @@ export const deviceCommandStatusEnum = pgEnum('device_command_status', [
   'cancelled',
 ]);
 
+/** מחזור החיים של שער BLE בעמדה */
+export const gatewayStatusEnum = pgEnum('gateway_status', [
+  'provisioned',
+  'active',
+  'unreachable',
+  'retired',
+]);
+
 // ─── מאמנים ───
 export const coachVerificationEnum = pgEnum('coach_verification', [
   'pending',
