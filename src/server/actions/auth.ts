@@ -1,9 +1,9 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '@/db/client';
+import { db, resolveConnectionString } from '@/db/client';
 import { users } from '@/db/schema';
 import { writeAudit } from '@/server/audit';
 import {
@@ -28,6 +28,42 @@ export interface LoginState {
 const MAX_FAILED_ATTEMPTS = 8;
 const LOCK_MINUTES = 15;
 
+/**
+ * בדיקת זמינות המסד לפני ניסיון ההתחברות.
+ *
+ * מבחינה בין שלוש תקלות תשתית שנראות זהות למשתמש אך דורשות טיפול שונה:
+ * היעדר הגדרת חיבור, מסד שאינו נענה, וסכימה שלא נוצרה.
+ */
+async function checkDatabaseReachable(): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!resolveConnectionString()) {
+    return {
+      ok: false,
+      message: 'המערכת אינה מחוברת למסד נתונים. יש להגדיר DATABASE_URL בסביבת האירוח.',
+    };
+  }
+
+  try {
+    await db.execute(sql`SELECT 1 FROM users LIMIT 1`);
+    return { ok: true };
+  } catch (error) {
+    // ⚠ Drizzle עוטף את שגיאת pg, ולכן הקוד יושב על cause ולא על השגיאה עצמה.
+    // בדיקה של error.code בלבד מפספסת תמיד ומחזירה הודעה גנרית.
+    const pgCode =
+      (error as { code?: string })?.code ??
+      ((error as { cause?: { code?: string } })?.cause?.code);
+
+    // 42P01 = undefined_table — המסד עלה אך ה־migrations לא רצו
+    if (pgCode === '42P01') {
+      return {
+        ok: false,
+        message: 'מסד הנתונים ריק — טרם הורצו ה־migrations. יש להריץ npm run db:migrate.',
+      };
+    }
+    console.error('בדיקת זמינות מסד נכשלה:', error);
+    return { ok: false, message: 'המסד אינו זמין כרגע. נסה שוב בעוד רגע.' };
+  }
+}
+
 export async function loginAction(
   _prevState: LoginState,
   formData: FormData,
@@ -48,6 +84,11 @@ export async function loginAction(
 
   const ctx = await getRequestContext();
   const email = parsed.data.email.toLowerCase();
+
+  // ⚠ כשל תשתית אינו "פרטים שגויים". בלי הבחנה כזו, מסד שאינו זמין נראה
+  // למשתמש כמו סיסמה לא נכונה — והוא ינסה שוב ושוב בלי סיכוי להצליח.
+  const health = await checkDatabaseReachable();
+  if (!health.ok) return { error: health.message };
 
   const [user] = await db
     .select({

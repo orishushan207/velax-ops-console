@@ -5,7 +5,7 @@ import { seedBusiness } from './business';
 import { seedContent } from './content';
 import { seedFoundation } from './foundation';
 import { seedNetwork } from './network';
-import { DEMO_PASSWORD, seedPeople } from './people';
+import { seedPassword, seedPeople } from './people';
 import { seedActiveSessions, seedOperations } from './operations';
 import { seedService } from './service';
 import { Rng } from './rng';
@@ -124,7 +124,8 @@ async function main() {
   console.log('  club.tlv@velax.co.il   מנהל מועדון (תל אביב בלבד)');
   console.log('  auditor@velax.co.il    מבקר — צפייה בלבד');
   console.log('');
-  console.log(`  סיסמה לכולם: ${DEMO_PASSWORD}`);
+  // מדפיס את הסיסמה שנטענה בפועל, לא את סיסמת ההדגמה הקבועה
+  console.log(`  סיסמה לכולם: ${seedPassword()}`);
   console.log('════════════════════════════════════════════════════════');
   console.log('');
 

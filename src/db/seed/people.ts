@@ -18,7 +18,17 @@ import { FIRST_NAMES_HE, LAST_NAMES_HE, Rng, israeliPhone } from './rng';
  * ⚠ הסיסמה הזו לפיתוח בלבד ואינה תקפה בסביבת production —
  * ה־Seed מסרב לרוץ כאשר APP_ENV=production.
  */
+/**
+ * סיסמת ההדגמה לפיתוח מקומי.
+ *
+ * ⚠ מתועדת ב־repo, ולכן אסור שתשמש בסביבה עם כתובת ציבורית.
+ * פריסה חייבת להעביר SEED_ADMIN_PASSWORD עם סיסמה ייחודית.
+ */
 export const DEMO_PASSWORD = 'Velax!2026';
+
+/** הסיסמה שתיטען בפועל — משתנה הסביבה גובר על סיסמת ההדגמה */
+export const seedPassword = (): string =>
+  process.env.SEED_ADMIN_PASSWORD?.trim() || DEMO_PASSWORD;
 
 export const STAFF_BLUEPRINTS = [
   { email: 'admin@velax.co.il', name: 'אורי שושן', role: 'super_admin', title: 'Super Admin · הנהלה', extraRoles: ['management'] },
@@ -82,7 +92,7 @@ export async function seedPeople(
   clubIdByCode: Map<string, string>,
 ) {
   console.log('▸ משתמשי מערכת...');
-  const passwordHash = await hashPassword(DEMO_PASSWORD);
+  const passwordHash = await hashPassword(seedPassword());
   const staffIds = new Map<string, string>();
 
   for (const s of STAFF_BLUEPRINTS) {

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { DEMO_PASSWORD } from '@/db/seed/people';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/server/auth/session';
 import { VelaXLogo, VelaXMark } from '@/components/brand/logo';
@@ -10,7 +11,13 @@ export default async function LoginPage() {
   const user = await getCurrentUser();
   if (user) redirect('/');
 
-  const isDev = process.env.APP_ENV !== 'production';
+  /**
+   * ⚠ הפאנל חושף כתובות צוות וסיסמה. הוא נקשר ל־NODE_ENV ולא ל־APP_ENV
+   * במכוון: APP_ENV משמש גם לערכים כמו demo/staging, וכל ערך שאינו
+   * production היה מדליף את הפרטים לאתר ציבורי.
+   * NODE_ENV הוא 'production' בכל בנייה פרוסה, ולכן הפאנל נשאר מקומי בלבד.
+   */
+  const isLocalDev = process.env.NODE_ENV === 'development';
 
   return (
     <main className="grid min-h-dvh lg:grid-cols-2">
@@ -57,7 +64,7 @@ export default async function LoginPage() {
 
           <LoginForm />
 
-          {isDev && (
+          {isLocalDev && (
             <div className="mt-8 rounded-[var(--radius-card)] bg-[var(--bg-raised)] p-4 ring-1 ring-inset ring-[var(--border-subtle)]">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-tertiary)]">
                 סביבת פיתוח · משתמשי הדגמה
@@ -80,7 +87,7 @@ export default async function LoginPage() {
                 </li>
               </ul>
               <p className="mt-2 text-[12px] text-[var(--fg-tertiary)]">
-                סיסמה: <span className="mono">Velax!2026</span>
+                סיסמה: <span className="mono">{DEMO_PASSWORD}</span>
               </p>
             </div>
           )}

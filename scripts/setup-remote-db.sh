@@ -2,8 +2,8 @@
 # ─────────────────────────────────────────────────────────────
 # VELA-X Ops Console — הקמת מסד הנתונים המרוחק
 #
-# מריץ פעם אחת: מחבר את Netlify CLI, מאתר את מסד הנתונים של האתר,
-# מריץ את ה־migrations ואת מדיניות ה־RLS, וטוען את נתוני ההדגמה.
+# מסד הנתונים כבר קיים ב־Netlify. הסקריפט מאתר את מחרוזת החיבור,
+# יוצר את הסכימה ואת מדיניות ה־RLS, וטוען את נתוני ההדגמה.
 #
 # הרצה:  bash scripts/setup-remote-db.sh
 # ─────────────────────────────────────────────────────────────
@@ -13,52 +13,47 @@ SITE_ID="22ec4934-8a0b-4fb3-a7c7-e11befd6902b"
 cd "$(dirname "$0")/.."
 
 step() { printf '\n\033[1;32m▸ %s\033[0m\n' "$1"; }
-fail() { printf '\n\033[1;31m✗ %s\033[0m\n' "$1" >&2; exit 1; }
+fail() { printf '\n\033[1;31m✗ %s\033[0m\n\n' "$1" >&2; exit 1; }
 
-step "1/5 · התחברות ל־Netlify"
-if ! npx netlify status >/dev/null 2>&1; then
-  echo "נפתח דפדפן לאישור הגישה..."
-  npx netlify login
-else
+ADMIN_PASSWORD="${SEED_ADMIN_PASSWORD:-<REDACTED>}"
+
+step "1/4 · התחברות ל־Netlify"
+if npx netlify status >/dev/null 2>&1; then
   echo "כבר מחובר."
+else
+  echo "נפתח דפדפן לאישור הגישה — אשר וחזור לטרמינל."
+  npx netlify login
 fi
 
-step "2/5 · קישור לפרויקט velax-ops-console"
+step "2/4 · קישור לפרויקט"
 npx netlify link --id "$SITE_ID" >/dev/null 2>&1 || true
-npx netlify status | head -8
 
-step "3/5 · איתור מסד הנתונים"
-DB_URL="$(npx netlify env:get NETLIFY_DATABASE_URL 2>/dev/null | tr -d '[:space:]' || true)"
+# Netlify מזריק את מחרוזת החיבור אוטומטית; DATABASE_URL גובר עליה אם הוגדר ידנית
+DB_URL=""
+for KEY in DATABASE_URL NETLIFY_DATABASE_URL NETLIFY_DATABASE_URL_UNPOOLED; do
+  VAL="$(npx netlify env:get "$KEY" 2>/dev/null | tr -d '[:space:]' || true)"
+  if [ -n "$VAL" ] && [ "$VAL" != "null" ] && [ "${VAL#postgres}" != "$VAL" ]; then
+    DB_URL="$VAL"; echo "נמצאה מחרוזת חיבור דרך $KEY"; break
+  fi
+done
 
-if [ -z "$DB_URL" ] || [ "$DB_URL" = "null" ]; then
-  echo "לא נמצא מסד. מקים מסד Netlify DB חדש..."
-  npx netlify db init --assume-no --boilerplate=none 2>/dev/null \
-    || npx netlify db init 2>/dev/null \
-    || true
-  DB_URL="$(npx netlify env:get NETLIFY_DATABASE_URL 2>/dev/null | tr -d '[:space:]' || true)"
-fi
-
-if [ -z "$DB_URL" ] || [ "$DB_URL" = "null" ]; then
-  fail "לא הצלחתי לאתר מחרוזת חיבור.
-נסה להקים מסד ידנית:  npx netlify db init
-או הגדר מסד חיצוני (Neon/Supabase):
+[ -z "$DB_URL" ] && fail "לא נמצאה מחרוזת חיבור.
+פתח את המסד בלוח הבקרה:
+  https://app.netlify.com/projects/velax-ops-console/configuration/database
+או הגדר מסד חיצוני:
   npx netlify env:set DATABASE_URL 'postgresql://...'
-ואז הרץ שוב את הסקריפט."
-fi
+ואז הרץ שוב."
 
-echo "✓ נמצא מסד נתונים"
-
-step "4/5 · הרצת migrations ומדיניות RLS"
-# APP_ENV=demo — הגנת ה־seed חוסמת רק סביבת production אמיתית
+step "3/4 · יצירת הסכימה ומדיניות RLS"
 DATABASE_URL="$DB_URL" APP_ENV=demo npm run db:migrate
 
-step "5/5 · טעינת נתוני ההדגמה"
-DATABASE_URL="$DB_URL" APP_ENV=demo npm run db:seed
-
-# האתר קורא DATABASE_URL; מוודאים שהוא מוגדר גם ב־Netlify
-npx netlify env:set DATABASE_URL "$DB_URL" --context production --secret >/dev/null 2>&1 \
-  || npx netlify env:set DATABASE_URL "$DB_URL" >/dev/null 2>&1 || true
+step "4/4 · טעינת נתוני ההדגמה"
+# ⚠ מוחק וטוען מחדש. אל תריץ אחרי שהוזנו נתונים אמיתיים.
+# ⚠ SEED_ADMIN_PASSWORD חובה: בלעדיו הטעינה מגדירה את סיסמת ההדגמה
+#   המתועדת ב־repo, על אתר שכתובתו ציבורית.
+DATABASE_URL="$DB_URL" APP_ENV=demo SEED_ADMIN_PASSWORD="$ADMIN_PASSWORD" npm run db:seed
 
 printf '\n\033[1;32m✓ המסד מוכן.\033[0m\n'
-printf 'כעת הרץ פריסה מחדש כדי שהאתר יתחבר אליו:\n'
-printf '  bash scripts/redeploy.sh\n\n'
+printf 'הקונסולה זמינה מיד:  https://velax-ops-console.netlify.app\n'
+printf 'משתמש:  admin@velax.co.il\n'
+printf 'סיסמה:  %s\n\n' "$ADMIN_PASSWORD" 
