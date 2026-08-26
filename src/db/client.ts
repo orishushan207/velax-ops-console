@@ -24,20 +24,28 @@ declare global {
  * מסד הברירת־מחדל של הפלטפורמה בלי לשנות קוד.
  */
 export function resolveConnectionString(): string | undefined {
-  const fromEnv =
+  // ⚠ המסד המנוהל **קודם** למשתני הסביבה, ובכוונה.
+  //
+  // Next מעתיק את קובץ ה־.env אל תוך ה־bundle של הפונקציה. כשהבנייה
+  // נעשית מקומית, ה־DATABASE_URL של הפיתוח נוסע יחד איתה — והפונקציה
+  // בענן ניסתה להתחבר ל־127.0.0.1. סדר העדיפות הזה מנטרל את זה:
+  // אם getConnectionString מצליח, אנחנו על Netlify ויש מסד מנוהל אמיתי,
+  // וכל ערך אחר שנגרר לתוך החבילה אינו רלוונטי.
+  //
+  // מחוץ ל־Netlify הקריאה זורקת, והנפילה למשתני הסביבה היא הנתיב הרגיל.
+  try {
+    const managed = netlifyConnectionString();
+    if (managed) return managed;
+  } catch {
+    // אין מסד מנוהל — ממשיכים למשתני הסביבה
+  }
+
+  return (
     process.env.DATABASE_URL ||
     process.env.NETLIFY_DATABASE_URL ||
-    process.env.NETLIFY_DATABASE_URL_UNPOOLED;
-  if (fromEnv) return fromEnv;
-
-  // ⚠ Netlify אינו מזריק בהכרח את מחרוזת החיבור כמשתנה סביבה ל־runtime.
-  // זו הדרך הרשמית לקבל אותה, והיא גם בוחרת את ה־branch הנכון של המסד.
-  // מחוץ ל־Netlify הקריאה זורקת — ולכן היא עטופה ומחזירה undefined.
-  try {
-    return netlifyConnectionString() || undefined;
-  } catch {
-    return undefined;
-  }
+    process.env.NETLIFY_DATABASE_URL_UNPOOLED ||
+    undefined
+  );
 }
 
 function createPool(): Pool {
