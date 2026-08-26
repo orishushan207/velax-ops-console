@@ -9,9 +9,30 @@
  *
  * ⚠ הקובץ ב־.gitignore. הסיסמה לעולם אינה נשמרת ב־repo.
  */
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
+
+/**
+ * טוען סודות פריסה מקובץ מקומי שאינו ב־repo.
+ *
+ * ⚠ הם היו קודם ב־netlify.toml, כלומר בתוך הקוד. קובץ נפרד ומוחרג
+ * מ־git מונע מהם להיכנס להיסטוריה, שממנה אי אפשר למחוק אותם.
+ */
+function loadDeploySecrets() {
+  const file = join(process.cwd(), '.env.deploy');
+  if (!existsSync(file)) return;
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    // ⚠ הסביבה גוברת: משתנה שהוגדר במפורש אינו נדרס על ידי הקובץ
+    if (!process.env[key]) process.env[key] = trimmed.slice(eq + 1).trim();
+  }
+}
+loadDeploySecrets();
 
 const password = process.env.SEED_ADMIN_PASSWORD?.trim() ?? '';
 
@@ -34,6 +55,7 @@ const deviceKey =
  * אימות התשלום, שיתווסף כשהסליקה תחובר.
  */
 const appKey = process.env.APP_API_KEY?.trim() || '';
+
 const outDir = join(process.cwd(), 'src', 'generated');
 mkdirSync(outDir, { recursive: true });
 
