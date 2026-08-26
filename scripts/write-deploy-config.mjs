@@ -25,6 +25,15 @@ const password = process.env.SEED_ADMIN_PASSWORD?.trim() ?? '';
  */
 const deviceKey =
   process.env.DEVICE_KEY_ENCRYPTION_KEY?.trim() || randomBytes(32).toString('base64');
+
+/**
+ * מפתח האפליקציה.
+ *
+ * ⚠ שער גס בלבד. הוא יושב בתוך ה־APK וניתן לחילוץ, ולכן אינו גבול
+ * האבטחה — הוא רק מונע פנייה אקראית מהאינטרנט. ההגנה האמיתית היא
+ * אימות התשלום, שיתווסף כשהסליקה תחובר.
+ */
+const appKey = process.env.APP_API_KEY?.trim() || '';
 const outDir = join(process.cwd(), 'src', 'generated');
 mkdirSync(outDir, { recursive: true });
 
@@ -36,6 +45,9 @@ export const DEPLOY_ADMIN_PASSWORD = ${JSON.stringify(password)};
 
 /** מפתח הצפנת מפתחות מכשירים. נוצר בבנייה אם לא הוגדר בסביבה. */
 export const DEPLOY_DEVICE_KEY = ${JSON.stringify(deviceKey)};
+
+/** מפתח האפליקציה. ריק = השער כבוי, וכל בקשה תתקבל. */
+export const DEPLOY_APP_KEY = ${JSON.stringify(appKey)};
 `;
 
 writeFileSync(join(outDir, 'deploy-config.ts'), body, 'utf8');
