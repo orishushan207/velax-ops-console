@@ -115,33 +115,33 @@ async function prepare(): Promise<DbReadyResult> {
   }
 
   try {
-    if ((await schemaExists()) && (await seedComplete())) {
-      await reconcileStaffPassword();
-      return { ok: true, prepared: false };
-    }
-
     // נעילה ברמת המסד — כמה בקשות במקביל לא יריצו הקמה בו־זמנית
     await pool.query('SELECT pg_advisory_lock($1)', [LOCK_ID]);
     try {
-      // בדיקה חוזרת תחת הנעילה: ייתכן שבקשה אחרת סיימה בינתיים
-      if ((await schemaExists()) && (await seedComplete())) {
-        await reconcileStaffPassword();
-        return { ok: true, prepared: false };
-      }
+      // ⚠ ה־migrations רצים **תמיד**, גם על מסד שכבר מאוכלס.
+      //
+      // קודם לכן הם דולגו כשהמסד נראה מוכן, ולכן טבלה שנוספה בגרסה חדשה
+      // לא הייתה נוצרת בפרודקשן — הפריסה הייתה עולה בלי הטבלה, וכל מסך
+      // שנוגע בה היה קורס. drizzle מנהל טבלת מעקב משלו, ולכן הרצה חוזרת
+      // של migration שכבר הוחל אינה עושה דבר.
+      const freshDatabase = !(await schemaExists());
+      if (freshDatabase) console.log('▸ מכין את המסד בפעם הראשונה...');
 
-      console.log('▸ מכין את המסד בפעם הראשונה...');
       await migrate(drizzle(pool), { migrationsFolder: join(process.cwd(), 'drizzle') });
       await pool.query(readFileSync(join(process.cwd(), 'drizzle', 'rls-policies.sql'), 'utf8'));
 
-      if (!(await seedComplete())) {
+      // ⚠ הטעינה, בניגוד ל־migrations, רצה רק כשהמסד ריק. היא מוחקת
+      // וטוענת מחדש, ולכן הרצה על מסד מאוכלס הייתה מוחקת נתונים אמיתיים.
+      const alreadySeeded = await seedComplete();
+      if (!alreadySeeded) {
         const { runSeed } = await import('@/db/seed/index');
         // ה־pool משותף עם שאר השרת — סגירתו הייתה מנתקת בקשות אחרות
         await runSeed({ closePool: false });
       }
 
       await reconcileStaffPassword();
-      console.log('✓ המסד מוכן.');
-      return { ok: true, prepared: true };
+      if (freshDatabase) console.log('✓ המסד מוכן.');
+      return { ok: true, prepared: !alreadySeeded };
     } finally {
       await pool.query('SELECT pg_advisory_unlock($1)', [LOCK_ID]).catch(() => {});
     }
