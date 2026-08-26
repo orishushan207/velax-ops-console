@@ -16,6 +16,7 @@ import { DetailList, DetailRow, PageHeader } from '@/components/shell/page-heade
 import { SessionControls } from '../../live/session-controls';
 import { SessionTimeline } from './timeline';
 import { PendingCommands } from './pending-commands';
+import { SessionShots } from './shots';
 import {
   formatCurrency,
   formatDateTime,
@@ -551,6 +552,7 @@ export default async function SessionDetailPage({
           </Card>
         </div>
       </div>
+      <SessionShots sessionId={id} />
     </>
   );
 }

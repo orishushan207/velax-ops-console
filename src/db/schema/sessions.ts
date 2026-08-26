@@ -251,3 +251,78 @@ export const courtBookingsRelations = relations(courtBookings, ({ one }) => ({
   court: one(courts, { fields: [courtBookings.courtId], references: [courts.id] }),
   session: one(sessions, { fields: [courtBookings.sessionId], references: [sessions.id] }),
 }));
+
+/**
+ * shot_events — תיעוד חבטה בודדת.
+ *
+ * ⚠ **אלה פרמטרים שנשלחו למכונה, לא מדידה של מה שיצא ממנה.** פרוטוקול
+ * PUSUN מדווח אחוז סוללה וקודי תקלה בלבד — אין בו אירוע חבטה ואין חיישן
+ * שמאשר ביצוע. המקור היחיד הוא האפליקציה, שיודעת מה פקדה.
+ *
+ * המשמעות: אם המכונה נתקעה, נגמרו לה כדורים או שהחבטה סטתה — הרישום כאן
+ * עדיין יראה את הערך שהוזמן. לכן העמודות נקראות `commanded_*`.
+ *
+ * ⚠ נפח: כ־20 חבטות לדקה. שעה אחת ≈ 1,200 שורות. האינדקסים מותאמים
+ * לשאילתה לפי סשן ולפי מכשיר בחלון זמן, ולא לסריקה חופשית.
+ */
+export const shotEvents = pgTable(
+  'shot_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => sessions.id, { onDelete: 'cascade' }),
+    deviceId: uuid('device_id'),
+    stationId: uuid('station_id'),
+
+    /** מספר רץ בתוך הסשן. הבסיס למניעת כפילות בשליחה חוזרת. */
+    sequence: integer('sequence').notNull(),
+    /** מתי החבטה נורתה, לפי שעון האפליקציה */
+    firedAt: timestamp('fired_at', { withTimezone: true }).notNull(),
+
+    // ─── ערכי הבקרה שנשלחו למכונה ───
+    /** מנוע שמאל־ימין, 210–2070 ביחידות המכונה */
+    commandedLr: smallint('commanded_lr'),
+    /** מנוע מעלה־מטה, 300–4200 ביחידות המכונה */
+    commandedUd: smallint('commanded_ud'),
+    /** ערך המהירות שנשלח, 80–180. ⚠ אינו קמ״ש. */
+    commandedVelocity: smallint('commanded_velocity'),
+    /** 0 ללא, 1 טופספין, 2 בקספין */
+    commandedSpinType: smallint('commanded_spin_type'),
+    commandedSpinAmount: smallint('commanded_spin_amount'),
+    /** שניות בין כדורים */
+    intervalSeconds: quantity('interval_seconds'),
+    /** fixed | horizontal | vertical | random | program */
+    serveMode: varchar('serve_mode', { length: 20 }),
+    /** מספר הנקודה מתוך 28, כשההגשה לפי נקודות */
+    pointIndex: smallint('point_index'),
+
+    // ─── פירוש האפליקציה ───
+    /**
+     * ⚠ ערכים שהאפליקציה גזרה מהכיול שלה. הם **אינם** מגיעים מהמכונה
+     * ואינם מדידה. נשמרים בנפרד מערכי הבקרה כדי שלא יתערבבו.
+     */
+    derivedSpeedKmh: quantity('derived_speed_kmh'),
+    derivedHeightLevel: smallint('derived_height_level'),
+    derivedAngleDegrees: smallint('derived_angle_degrees'),
+    /** מזהה הכיול שממנו נגזרו הערכים, לצורך מעקב */
+    calibrationRef: varchar('calibration_ref', { length: 64 }),
+
+    /** שדות נוספים שהאפליקציה רוצה לשמור, בלי לשנות סכימה */
+    extra: jsonb('extra').$type<Record<string, unknown>>(),
+    /** מתי השרת קלט. פער גדול מ־firedAt מעיד על שליחה מאוחרת. */
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    ...demoFlag,
+  },
+  (t) => [
+    /** ⚠ מונע כפילות כשהאפליקציה שולחת מנה שנייה אחרי כשל רשת */
+    uniqueIndex('shot_events_session_sequence_key').on(t.sessionId, t.sequence),
+    index('shot_events_session_idx').on(t.sessionId, t.firedAt),
+    index('shot_events_device_time_idx').on(t.deviceId, t.firedAt),
+    index('shot_events_station_time_idx').on(t.stationId, t.firedAt),
+  ],
+);
+
+export const shotEventsRelations = relations(shotEvents, ({ one }) => ({
+  session: one(sessions, { fields: [shotEvents.sessionId], references: [sessions.id] }),
+}));
