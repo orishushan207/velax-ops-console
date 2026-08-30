@@ -2,6 +2,7 @@ import 'server-only';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { getConnectionString as netlifyConnectionString } from '@netlify/database';
+import { connectionFromEnv, isHostedEnvironment } from '@/lib/db-connection';
 import * as schema from './schema';
 
 /**
@@ -24,15 +25,8 @@ declare global {
  * מסד הברירת־מחדל של הפלטפורמה בלי לשנות קוד.
  */
 export function resolveConnectionString(): string | undefined {
-  // ⚠ המסד המנוהל **קודם** למשתני הסביבה, ובכוונה.
-  //
-  // Next מעתיק את קובץ ה־.env אל תוך ה־bundle של הפונקציה. כשהבנייה
-  // נעשית מקומית, ה־DATABASE_URL של הפיתוח נוסע יחד איתה — והפונקציה
-  // בענן ניסתה להתחבר ל־127.0.0.1. סדר העדיפות הזה מנטרל את זה:
-  // אם getConnectionString מצליח, אנחנו על Netlify ויש מסד מנוהל אמיתי,
-  // וכל ערך אחר שנגרר לתוך החבילה אינו רלוונטי.
-  //
-  // מחוץ ל־Netlify הקריאה זורקת, והנפילה למשתני הסביבה היא הנתיב הרגיל.
+  // 1. מסד מנוהל של Netlify, כשהוא קיים. מקור אמת ודאי, וגובר על כל
+  //    ערך שנגרר לתוך ה־bundle בזמן בנייה מקומית.
   try {
     const managed = netlifyConnectionString();
     if (managed) return managed;
@@ -40,13 +34,14 @@ export function resolveConnectionString(): string | undefined {
     // אין מסד מנוהל — ממשיכים למשתני הסביבה
   }
 
-  return (
-    process.env.DATABASE_URL ||
-    process.env.NETLIFY_DATABASE_URL ||
-    process.env.NETLIFY_DATABASE_URL_UNPOOLED ||
-    undefined
-  );
+  const fromEnv = connectionFromEnv();
+  if (!fromEnv && isHostedEnvironment() && process.env.DATABASE_URL) {
+    console.error('⚠ DATABASE_URL מצביע על מסד מקומי בסביבת אירוח — מתעלם ממנו.');
+  }
+  return fromEnv;
 }
+
+
 
 function createPool(): Pool {
   const connectionString = resolveConnectionString();

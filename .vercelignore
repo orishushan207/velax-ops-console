@@ -1,0 +1,13 @@
+# ⚠ קריטי: הקובץ מכיל DATABASE_URL של הפיתוח. אם הוא מגיע לענן,
+# Next אורז אותו לפונקציה והיא מנסה להתחבר ל־127.0.0.1.
+.env
+.env.local
+.env.deploy
+
+.next
+node_modules
+.netlify
+test-results
+playwright-report
+e2e
+tests

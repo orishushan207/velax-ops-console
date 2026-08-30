@@ -22,7 +22,8 @@
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "smoke": "tsx --conditions=react-server scripts/smoke.ts",
     "db:ensure": "tsx --conditions=react-server src/db/ensure.ts",
-    "prepare:config": "node scripts/write-deploy-config.mjs"
+    "prepare:config": "node scripts/write-deploy-config.mjs",
+    "build:vercel": "node scripts/write-deploy-config.mjs && next build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
