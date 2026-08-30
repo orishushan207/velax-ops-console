@@ -65,7 +65,12 @@ async function seedComplete(): Promise<boolean> {
  * ההדגמה מתועדת ב־repo. כאן הסביבה היא מקור האמת, כך שגם מסד שנטען
  * בטעות עם ברירת המחדל מתוקן מעצמו בעלייה הבאה.
  */
-async function reconcileStaffPassword(): Promise<void> {
+async function reconcileStaffPassword(isLocalDb: boolean): Promise<void> {
+  // ⚠ לא מסנכרנים מסד פיתוח מקומי. סיסמת הפריסה שייכת לפריסה; מסד מקומי
+  // נשאר עם סיסמת ההדגמה המתועדת, אחרת כל בנייה מקומית משנה אותה
+  // והבדיקות נשברות.
+  if (isLocalDb) return;
+
   const desired = deployPassword();
   if (!desired) return;
 
@@ -139,7 +144,7 @@ async function prepare(): Promise<DbReadyResult> {
         await runSeed({ closePool: false });
       }
 
-      await reconcileStaffPassword();
+      await reconcileStaffPassword(isLocalDb);
       if (freshDatabase) console.log('✓ המסד מוכן.');
       return { ok: true, prepared: !alreadySeeded };
     } finally {
