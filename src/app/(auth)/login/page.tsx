@@ -5,6 +5,13 @@ import { getCurrentUser } from '@/server/auth/session';
 import { VelaXLogo, VelaXMark } from '@/components/brand/logo';
 import { LoginForm } from './login-form';
 
+/**
+ * ⚠ הכנת המסד בבקשה הראשונה יכולה לקחת עשרות שניות: יצירת סכימה,
+ * החלת RLS וטעינת נתונים. בברירת המחדל הפונקציה נקטעת באמצע ומשאירה
+ * מסד חלקי.
+ */
+export const maxDuration = 60;
+
 export const metadata: Metadata = { title: 'התחברות' };
 
 export default async function LoginPage() {

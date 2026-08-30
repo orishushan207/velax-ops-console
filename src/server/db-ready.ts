@@ -120,32 +120,45 @@ async function prepare(): Promise<DbReadyResult> {
   }
 
   try {
-    // נעילה ברמת המסד — כמה בקשות במקביל לא יריצו הקמה בו־זמנית
-    await pool.query('SELECT pg_advisory_lock($1)', [LOCK_ID]);
-    try {
-      // ⚠ ה־migrations רצים **תמיד**, גם על מסד שכבר מאוכלס.
-      //
-      // קודם לכן הם דולגו כשהמסד נראה מוכן, ולכן טבלה שנוספה בגרסה חדשה
-      // לא הייתה נוצרת בפרודקשן — הפריסה הייתה עולה בלי הטבלה, וכל מסך
-      // שנוגע בה היה קורס. drizzle מנהל טבלת מעקב משלו, ולכן הרצה חוזרת
-      // של migration שכבר הוחל אינה עושה דבר.
-      const freshDatabase = !(await schemaExists());
-      if (freshDatabase) console.log('▸ מכין את המסד בפעם הראשונה...');
+    // ⚠ בדיקת מוכנות **לפני** הנעילה, ובלעדיה.
+    //
+    // מסד שכבר מוכן הוא המקרה הרגיל, והוא חייב לעבור בלי לגעת בנעילה
+    // בכלל. קודם לכן כל בקשה ניסתה לנעול, וזה נעל את האתר: הבקשה
+    // הראשונה נקטעה באמצע ההקמה, הנעילה לא שוחררה, וכל בקשה אחרת
+    // חיכתה לה לנצח.
+    if ((await schemaExists()) && (await seedComplete())) {
+      await reconcileStaffPassword(isLocalDb);
+      return { ok: true, prepared: false };
+    }
 
+    // ⚠ try ולא lock: מול pooler של Neon נעילה חוסמת אינה משתחררת
+    // בהכרח כשהתהליך נהרג, ובקשה שממתינה לה נתקעת עד לפסק זמן.
+    const got = await pool.query<{ locked: boolean }>(
+      'SELECT pg_try_advisory_lock($1) AS locked',
+      [LOCK_ID],
+    );
+    if (!got.rows[0]?.locked) {
+      // מופע אחר מקים כרגע. עדיף להחזיר הודעה ברורה מלהמתין.
+      return {
+        ok: false,
+        reason: 'failed',
+        message: 'המסד בהקמה כרגע. נסה שוב בעוד רגע.',
+      };
+    }
+
+    try {
+      console.log('▸ מכין את המסד...');
       await migrate(drizzle(pool), { migrationsFolder: join(process.cwd(), 'drizzle') });
       await pool.query(readFileSync(join(process.cwd(), 'drizzle', 'rls-policies.sql'), 'utf8'));
 
-      // ⚠ הטעינה, בניגוד ל־migrations, רצה רק כשהמסד ריק. היא מוחקת
-      // וטוענת מחדש, ולכן הרצה על מסד מאוכלס הייתה מוחקת נתונים אמיתיים.
       const alreadySeeded = await seedComplete();
       if (!alreadySeeded) {
         const { runSeed } = await import('@/db/seed/index');
-        // ה־pool משותף עם שאר השרת — סגירתו הייתה מנתקת בקשות אחרות
         await runSeed({ closePool: false });
       }
 
       await reconcileStaffPassword(isLocalDb);
-      if (freshDatabase) console.log('✓ המסד מוכן.');
+      console.log('✓ המסד מוכן.');
       return { ok: true, prepared: !alreadySeeded };
     } finally {
       await pool.query('SELECT pg_advisory_unlock($1)', [LOCK_ID]).catch(() => {});
