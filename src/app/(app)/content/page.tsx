@@ -11,6 +11,28 @@ import { db } from '@/db/client';
 import { formatDate, formatNumber, formatPercent } from '@/lib/format';
 import * as labels from '@/lib/labels';
 import { requirePermission } from '@/server/auth/guard';
+import { CreateDrillButton, EditDrillButton } from '@/components/forms/entity-buttons';
+import { drillFormSections } from '@/components/forms/entity-forms';
+
+/** ממפה שורת SQL לערכי הטופס. שמות העמודות במסד הם snake_case. */
+function drillToForm(d: Record<string, unknown>) {
+  return {
+    nameHe: d.name_he as string,
+    drillType: d.drill_type as string,
+    level: d.level as string,
+    trainingGoal: d.training_goal as string,
+    playerCount: d.player_count as number,
+    durationMinutes: d.duration_minutes as number,
+    shotCount: d.shot_count as number,
+    speedKmh: d.speed_kmh as number,
+    spinLevel: d.spin_level as number,
+    frequencyPerMinute: d.frequency_per_minute as number,
+    heightLevel: d.height_level as number,
+    depthLevel: d.depth_level as number,
+    angleDegrees: d.angle_degrees as number,
+    sequence: d.sequence as string,
+  };
+}
 
 export const metadata: Metadata = { title: 'תוכן ותוכניות אימון' };
 
@@ -18,7 +40,8 @@ const num = (v: unknown) => Number(v ?? 0);
 const str = (v: unknown) => (v === null || v === undefined ? null : String(v));
 
 export default async function ContentPage() {
-  await requirePermission('content.view');
+  const user = await requirePermission('content.view');
+  const canEdit = user.permissions.has('content.edit');
 
   const [programRows, drillRows, homeworkRows] = await Promise.all([
     db.execute(sql`
@@ -74,6 +97,9 @@ export default async function ContentPage() {
               {inReview} ממתינות לאישור תוכן
             </Badge>
           ) : undefined
+        }
+        actions={
+          canEdit ? <CreateDrillButton sections={drillFormSections()} /> : undefined
         }
       />
 
@@ -238,6 +264,7 @@ export default async function ContentPage() {
                       <th className="py-2 text-center font-semibold">סדר</th>
                       <th className="py-2 text-end font-semibold">שימושים</th>
                       <th className="py-2 text-center font-semibold">סטטוס</th>
+                      {canEdit && <th className="py-2 text-center font-semibold">פעולות</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -307,6 +334,15 @@ export default async function ContentPage() {
                             '—'
                           )}
                         </td>
+                        {canEdit && (
+                          <td className="py-2 text-center">
+                            <EditDrillButton
+                              id={String(d.id)}
+                              sections={drillFormSections(drillToForm(d))}
+                              variant="ghost"
+                            />
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>

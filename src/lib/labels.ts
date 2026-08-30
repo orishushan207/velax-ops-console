@@ -280,6 +280,11 @@ export const inventoryMovementType = dict({
   stock_count_adjust: { he: 'התאמת ספירה', tone: 'warning' },
 } as const);
 
+export const shotSequence = dict({
+  fixed: { he: 'רצף קבוע', tone: 'neutral' },
+  random: { he: 'אקראי', tone: 'neutral' },
+} as const);
+
 export const contentStatus = dict({
   draft: { he: 'טיוטה', tone: 'muted' },
   review: { he: 'בבדיקה', tone: 'warning' },

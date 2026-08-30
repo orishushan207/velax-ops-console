@@ -244,7 +244,11 @@ export default async function FinancePage({
                   {(
                     [
                       ['מחיר לצרכן (כולל מע״מ)', 'priceGross', false],
-                      ['בניכוי מע״מ', 'vatAmount', true],
+                      [
+                        `בניכוי מע״מ ${formatPercent(scenarioSettings[0]!.num('finance.vat_rate', 0.18), 0)}`,
+                        'vatAmount',
+                        true,
+                      ],
                       ['הכנסה נטו', 'netRevenue', false],
                       ['עמלת סליקה', 'processingFee', true],
                       ['קרן תגמולים', 'rewardsReserve', true],

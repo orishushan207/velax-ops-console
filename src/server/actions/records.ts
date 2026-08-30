@@ -5,7 +5,17 @@ import { z } from 'zod';
 import { db } from '@/db/client';
 import { diffRecords as diff } from '@/lib/record-diff';
 import { pluralHe } from '@/lib/format';
-import { clubs, coaches, devices, leads, playerProfiles, stations, users } from '@/db/schema';
+import {
+  clubs,
+  coaches,
+  devices,
+  drillVersions,
+  drills,
+  leads,
+  playerProfiles,
+  stations,
+  users,
+} from '@/db/schema';
 import { writeAudit } from '@/server/audit';
 import { assertClubAccess } from '@/server/auth/guard';
 import {
@@ -1394,5 +1404,276 @@ export async function archiveClubAction(
 
     revalidate('/clubs', `/clubs/${clubId}`, '/stations', '/crm');
     return actionOk({ id: clubId }, `המועדון "${club.name}" אורכב`);
+  });
+}
+
+// ─────────────────────────── תרגילים ───────────────────────────
+
+/**
+ * תרגיל מגורסה: `drills` מחזיק את הזהות, `drill_versions` את התוכן.
+ *
+ * ⚠ עריכה **אינה** משנה גרסה שפורסמה. תרגיל שרץ במכונה אצל שחקנים לא
+ * ישתנה תחת ידיהם באמצע. עריכה יוצרת גרסה חדשה בטיוטה, והפרסום הוא
+ * פעולה נפרדת ומודעת.
+ */
+
+const drillFields = z.object({
+  nameHe: z.string().trim().min(2, 'שם קצר מדי').max(200),
+  drillType: z.enum([
+    'single_stroke',
+    'combination',
+    'custom_drill',
+    'program',
+    'coach_homework',
+    'quick_start',
+    'challenge',
+    'screen_content',
+  ]),
+  level: z.enum(['1', '2', '3']),
+  trainingGoal: optionalText(200),
+  description: optionalText(2000),
+  playerCount: z.coerce.number().int().min(1).max(2),
+  durationMinutes: z.coerce.number().int().min(5, 'לפחות 5 דקות').max(180),
+  shotCount: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? Number(v) : null))
+    .refine((v) => v === null || (Number.isInteger(v) && v > 0 && v <= 2000), 'מספר מכות אינו תקין'),
+  // ⚠ טווחי המכונה האמיתיים, לפי מסמך היצרן. ראה lib/pusun/protocol.ts
+  speedKmh: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? Number(v) : null))
+    .refine((v) => v === null || (v >= 20 && v <= 200), 'מהירות מחוץ לטווח 20–200'),
+  spinLevel: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? Number(v) : null))
+    .refine((v) => v === null || (Number.isInteger(v) && v >= -30 && v <= 30), 'סיבוב בטווח 30- עד 30'),
+  frequencyPerMinute: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? Number(v) : null))
+    .refine(
+      (v) => v === null || (Number.isInteger(v) && v >= 7 && v <= 33),
+      'תדירות מחוץ ליכולת המכונה (7–33 כדורים לדקה)',
+    ),
+  heightLevel: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? Number(v) : null))
+    .refine((v) => v === null || (Number.isInteger(v) && v >= 1 && v <= 10), 'גובה בטווח 1–10'),
+  depthLevel: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? Number(v) : null))
+    .refine((v) => v === null || (Number.isInteger(v) && v >= 1 && v <= 10), 'עומק בטווח 1–10'),
+  angleDegrees: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? Number(v) : null))
+    .refine((v) => v === null || (Number.isInteger(v) && v >= -45 && v <= 45), 'זווית בטווח 45- עד 45'),
+  sequence: z.enum(['fixed', 'random']),
+  safetyInstructions: optionalText(1000),
+});
+
+function parseDrill(formData: FormData) {
+  return drillFields.safeParse({
+    nameHe: formString(formData, 'nameHe'),
+    drillType: formString(formData, 'drillType') || 'single_stroke',
+    level: formString(formData, 'level') || '1',
+    trainingGoal: formString(formData, 'trainingGoal'),
+    description: formString(formData, 'description'),
+    playerCount: formString(formData, 'playerCount') || '1',
+    durationMinutes: formString(formData, 'durationMinutes') || '30',
+    shotCount: formString(formData, 'shotCount'),
+    speedKmh: formString(formData, 'speedKmh'),
+    spinLevel: formString(formData, 'spinLevel'),
+    frequencyPerMinute: formString(formData, 'frequencyPerMinute'),
+    heightLevel: formString(formData, 'heightLevel'),
+    depthLevel: formString(formData, 'depthLevel'),
+    angleDegrees: formString(formData, 'angleDegrees'),
+    sequence: formString(formData, 'sequence') || 'fixed',
+    safetyInstructions: formString(formData, 'safetyInstructions'),
+  });
+}
+
+/** מייצר slug ייחודי מהשם העברי */
+function slugify(name: string): string {
+  const base = name
+    .trim()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+    .slice(0, 60);
+  return `${base || 'drill'}-${Date.now().toString(36)}`;
+}
+
+export async function createDrillAction(formData: FormData): Promise<ActionResult<{ id: string }>> {
+  return withPermission('content.edit', async (ctx) => {
+    const parsed = parseDrill(formData);
+    if (!parsed.success) return invalid(parsed.error);
+    const v = parsed.data;
+
+    const id = await db.transaction(async (tx) => {
+      const [drill] = await tx
+        .insert(drills)
+        .values({ slug: slugify(v.nameHe), nameHe: v.nameHe, drillType: v.drillType, createdByUserId: ctx.user.id })
+        .returning({ id: drills.id });
+
+      const [version] = await tx
+        .insert(drillVersions)
+        .values({
+          drillId: drill!.id,
+          versionNumber: 1,
+          // ⚠ נוצר כטיוטה. פרסום הוא פעולה נפרדת ומודעת.
+          status: 'draft',
+          level: v.level,
+          trainingGoal: v.trainingGoal,
+          description: v.description,
+          playerCount: v.playerCount,
+          durationMinutes: v.durationMinutes,
+          shotCount: v.shotCount,
+          speedKmh: v.speedKmh,
+          spinLevel: v.spinLevel,
+          frequencyPerMinute: v.frequencyPerMinute,
+          heightLevel: v.heightLevel,
+          depthLevel: v.depthLevel,
+          angleDegrees: v.angleDegrees,
+          sequence: v.sequence,
+          safetyInstructions: v.safetyInstructions,
+        })
+        .returning({ id: drillVersions.id });
+
+      await tx.update(drills).set({ currentVersionId: version!.id }).where(eq(drills.id, drill!.id));
+
+      await writeAudit(
+        {
+          action: 'create',
+          actionKey: 'drill.create',
+          entityType: 'drill',
+          entityId: drill!.id,
+          entityLabel: v.nameHe,
+          actorUserId: ctx.user.id,
+          actorName: ctx.user.fullName,
+          actorRoleKeys: ctx.user.roleKeys,
+          after: { ...v },
+          ipAddress: ctx.ipAddress,
+          userAgent: ctx.userAgent,
+          requestId: ctx.requestId,
+        },
+        tx,
+      );
+      return drill!.id;
+    });
+
+    revalidate('/content');
+    return actionOk({ id }, `התרגיל "${v.nameHe}" נוצר כטיוטה`);
+  });
+}
+
+/**
+ * עריכת תרגיל.
+ *
+ * ⚠ אם הגרסה הנוכחית פורסמה — נוצרת גרסה חדשה בטיוטה במקום לשנות אותה.
+ * שינוי גרסה פעילה היה משנה תרגיל שרץ ברגע זה על מכונה.
+ */
+export async function updateDrillAction(
+  drillId: string,
+  formData: FormData,
+): Promise<ActionResult<{ id: string }>> {
+  return withPermission('content.edit', async (ctx) => {
+    const parsed = parseDrill(formData);
+    if (!parsed.success) return invalid(parsed.error);
+    const v = parsed.data;
+
+    const [current] = await db
+      .select({
+        drillId: drills.id,
+        nameHe: drills.nameHe,
+        versionId: drillVersions.id,
+        versionNumber: drillVersions.versionNumber,
+        status: drillVersions.status,
+      })
+      .from(drills)
+      .leftJoin(drillVersions, eq(drillVersions.id, drills.currentVersionId))
+      .where(and(eq(drills.id, drillId), isNull(drills.deletedAt)))
+      .limit(1);
+    if (!current) return actionError('התרגיל לא נמצא');
+
+    const published = current.status === 'published';
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(drills)
+        .set({ nameHe: v.nameHe, drillType: v.drillType })
+        .where(eq(drills.id, drillId));
+
+      const payload = {
+        level: v.level,
+        trainingGoal: v.trainingGoal,
+        description: v.description,
+        playerCount: v.playerCount,
+        durationMinutes: v.durationMinutes,
+        shotCount: v.shotCount,
+        speedKmh: v.speedKmh,
+        spinLevel: v.spinLevel,
+        frequencyPerMinute: v.frequencyPerMinute,
+        heightLevel: v.heightLevel,
+        depthLevel: v.depthLevel,
+        angleDegrees: v.angleDegrees,
+        sequence: v.sequence,
+        safetyInstructions: v.safetyInstructions,
+      };
+
+      if (published || !current.versionId) {
+        const [next] = await tx
+          .insert(drillVersions)
+          .values({
+            drillId,
+            versionNumber: (current.versionNumber ?? 0) + 1,
+            status: 'draft',
+            ...payload,
+          })
+          .returning({ id: drillVersions.id });
+        await tx.update(drills).set({ currentVersionId: next!.id }).where(eq(drills.id, drillId));
+      } else {
+        await tx.update(drillVersions).set(payload).where(eq(drillVersions.id, current.versionId));
+      }
+
+      await writeAudit(
+        {
+          action: 'update',
+          actionKey: published ? 'drill.new_version' : 'drill.update',
+          entityType: 'drill',
+          entityId: drillId,
+          entityLabel: v.nameHe,
+          actorUserId: ctx.user.id,
+          actorName: ctx.user.fullName,
+          actorRoleKeys: ctx.user.roleKeys,
+          before: { name: current.nameHe, version: current.versionNumber, status: current.status },
+          after: { ...v, newVersion: published },
+          ipAddress: ctx.ipAddress,
+          userAgent: ctx.userAgent,
+          requestId: ctx.requestId,
+        },
+        tx,
+      );
+    });
+
+    revalidate('/content');
+    return actionOk(
+      { id: drillId },
+      published
+        ? 'נוצרה גרסה חדשה בטיוטה. הגרסה שפורסמה לא שונתה.'
+        : 'התרגיל עודכן',
+    );
   });
 }

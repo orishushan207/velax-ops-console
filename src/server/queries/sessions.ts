@@ -167,6 +167,8 @@ export interface SessionDetail {
   discountAmount: number;
   amountGross: number;
   vatAmount: number;
+  /** השיעור שהוחל בפועל על הסשן, לא ההגדרה הנוכחית */
+  vatRateApplied: number;
   amountNet: number;
   refundedAmount: number;
   estimatedBalls: number | null;
@@ -244,6 +246,7 @@ export async function getSessionDetail(
     discountAmount: Number(row.discount_amount ?? 0),
     amountGross: Number(row.amount_gross ?? 0),
     vatAmount: Number(row.vat_amount ?? 0),
+    vatRateApplied: Number(row.vat_rate_applied ?? 0.18),
     amountNet: Number(row.amount_net ?? 0),
     refundedAmount: Number(row.refunded_amount ?? 0),
     estimatedBalls: row.estimated_balls === null ? null : Number(row.estimated_balls),

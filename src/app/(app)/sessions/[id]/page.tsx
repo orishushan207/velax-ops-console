@@ -22,6 +22,7 @@ import {
   formatDateTime,
   formatDuration,
   formatNumber,
+  formatPercent,
 } from '@/lib/format';
 import * as labels from '@/lib/labels';
 import { requirePermission } from '@/server/auth/guard';
@@ -315,7 +316,9 @@ export default async function SessionDetailPage({
                       {formatCurrency(session.amountGross, true)}
                     </span>
                   </DetailRow>
-                  <DetailRow label="מתוכו מע״מ">
+                  <DetailRow
+                    label={`מתוכו מע״מ ${formatPercent(Number(session.vatRateApplied ?? 0.18), 0)}`}
+                  >
                     <span className="num text-[var(--fg-secondary)]">
                       {formatCurrency(session.vatAmount, true)}
                     </span>

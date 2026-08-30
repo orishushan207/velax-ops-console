@@ -42,6 +42,7 @@ export default async function PaymentsPage({
   const settings = await getSettings();
   const anomalyThreshold = settings.num('refund.club_anomaly_rate_pct', 0.08);
   const refundTarget = settings.num('quality.refund_rate_alert_pct', 0.03);
+  const vatRate = settings.num('finance.vat_rate', 0.18);
 
   const [result, stats, series, anomalies, clubRows] = await Promise.all([
     listPayments(user, {
@@ -249,9 +250,13 @@ export default async function PaymentsPage({
           hint="כולל מע״מ. אינה הכנסה חשבונאית ואינה רווח."
         />
         <KpiCard
-          label="מע״מ"
+          label={`מע״מ ${formatPercent(vatRate, 0)}`}
           value={formatCurrency(stats.vatAmount)}
-          hint="מועבר לרשות המסים ואינו הכנסה."
+          hint={
+            `${formatPercent(vatRate, 0)} מחושבים על המחיר לפני מע״מ. ` +
+            `מתוך מחיר שכולל מע״מ זהו ${formatPercent(vatRate / (1 + vatRate), 1)}. ` +
+            'מועבר לרשות המסים ואינו הכנסה.'
+          }
         />
         <KpiCard
           label="הכנסה נטו"

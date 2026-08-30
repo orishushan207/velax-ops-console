@@ -7,11 +7,13 @@ import { RecordFormDialog } from './record-form';
 import type { FieldSection } from './field-types';
 import {
   createClubAction,
+  createDrillAction,
   createCoachAction,
   createLeadAction,
   createPlayerAction,
   createStationAction,
   updateClubAction,
+  updateDrillAction,
   updateCoachAction,
   updateDeviceAction,
   updateLeadAction,
@@ -277,6 +279,45 @@ export function EditDeviceButton({ id, sections, label = 'עריכה', variant }
         onOpenChange={setOpen}
         title="עריכת מכונה"
         description="מפתח ההרשאה של המכונה אינו ניתן לצפייה או לעריכה מכאן."
+        submitLabel="שמור שינויים"
+        sections={sections}
+        action={action}
+      />
+    </>
+  );
+}
+
+// ─── תרגילים ───
+
+export function CreateDrillButton({ sections, label = 'תרגיל חדש', variant }: CreateProps) {
+  const { open, setOpen } = useDialog();
+  return (
+    <>
+      <Trigger label={label} variant={variant} mode="create" onClick={() => setOpen(true)} />
+      <RecordFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="תרגיל חדש"
+        description="התרגיל נוצר כטיוטה. פרסום הוא פעולה נפרדת, כדי שתרגיל לא יגיע למכונה לפני שנבדק."
+        submitLabel="צור תרגיל"
+        sections={sections}
+        action={createDrillAction}
+      />
+    </>
+  );
+}
+
+export function EditDrillButton({ id, sections, label = 'עריכה', variant }: EditProps) {
+  const { open, setOpen } = useDialog();
+  const action = React.useCallback((fd: FormData) => updateDrillAction(id, fd), [id]);
+  return (
+    <>
+      <Trigger label={label} variant={variant} mode="edit" onClick={() => setOpen(true)} />
+      <RecordFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="עריכת תרגיל"
+        description="עריכת תרגיל שפורסם יוצרת גרסה חדשה בטיוטה. הגרסה הפעילה אינה משתנה תחת ידי שחקנים שמתאמנים ברגע זה."
         submitLabel="שמור שינויים"
         sections={sections}
         action={action}
