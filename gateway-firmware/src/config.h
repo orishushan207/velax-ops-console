@@ -12,7 +12,7 @@
 #define WIFI_PASSWORD  "..."
 
 // ─── שרת ───
-#define API_BASE       "https://velax-ops-console.netlify.app"
+#define API_BASE       "https://velax-ops-console.vercel.app"
 #define GATEWAY_KEY    "PASTE_GATEWAY_KEY_HERE"
 #define FIRMWARE_VER   "1.0.0"
 

@@ -58,7 +58,7 @@ pio device monitor
 ```c
 #define WIFI_SSID      "CLUB-WIFI"
 #define WIFI_PASSWORD  "..."
-#define API_BASE       "https://velax-ops-console.netlify.app"
+#define API_BASE       "https://velax-ops-console.vercel.app"
 #define GATEWAY_KEY    "<מפתח מהקונסולה>"
 ```
 
